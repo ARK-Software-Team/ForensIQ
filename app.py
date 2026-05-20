@@ -139,8 +139,8 @@ def analyze():
         if is_gif:
             pil_raw.seek(0)
         pil_img = pil_raw.convert("RGB")
-    except Exception as e:
-        logger.error("Image load failed: %s", e)
+    except Exception:
+        logger.exception("Image load failed")
         return jsonify({"error": "Cannot read image file"}), 400
 
     # --- PREPROCESS state ---

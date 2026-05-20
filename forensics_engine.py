@@ -180,7 +180,7 @@ class ForensicsEngine:
 
         @param algo_id  One of: 'sift', 'surf', 'akaze', 'orb'.
         @param gray     Grayscale image.
-        @param img_np   Original color image.
+        @param img_np   Original color image (unused, kept for API consistency).
         @return         Dict with confidence, keypoint_count, match_count, regions.
         """
         try:
@@ -189,62 +189,69 @@ class ForensicsEngine:
                 return self._empty_result(algo_id, "Detector not available")
 
             kps, descs = detector.detectAndCompute(gray, None)
-
             if descs is None or len(kps) < 10:
                 return self._empty_result(algo_id, "Insufficient keypoints")
 
-            # Match descriptors to find copy-move pairs
-            if algo_id == "orb":
-                matches = self.bf_hamming.knnMatch(descs, descs, k=3)
-            else:
-                matches = self.bf_matcher.knnMatch(descs, descs, k=3)
+            matcher  = self.bf_hamming if algo_id == "orb" else self.bf_matcher
+            matches  = matcher.knnMatch(descs, descs, k=3)
+            ratio    = 0.75 if algo_id in ("sift", "surf") else 0.80
 
-            good_matches = []
-            regions = []
+            good_matches, regions = self._filter_matches(matches, kps, ratio)
 
-            for match_group in matches:
-                # Skip self-matches (distance == 0)
-                filtered = [m for m in match_group if m.distance > 0.01]
-                if len(filtered) < 2:
-                    continue
-
-                m, n = filtered[0], filtered[1]
-
-                # Lowe's ratio test
-                ratio = 0.75 if algo_id in ("sift", "surf") else 0.80
-                if m.distance < ratio * n.distance:
-                    pt1 = kps[m.queryIdx].pt
-                    pt2 = kps[m.trainIdx].pt
-
-                    # Spatial separation guard (avoid trivial neighbors)
-                    dist = np.hypot(pt1[0] - pt2[0], pt1[1] - pt2[1])
-                    if dist > 20:
-                        good_matches.append(m)
-                        regions.append({
-                            "x1": int(pt1[0]), "y1": int(pt1[1]),
-                            "x2": int(pt2[0]), "y2": int(pt2[1]),
-                            "strength": float(1.0 - m.distance /
-                                              max(n.distance, 1e-6))
-                        })
-
+            kp_count    = len(kps)
             match_count = len(good_matches)
-            kp_count = len(kps)
-
-            # Confidence heuristic: ratio of suspicious matches to keypoints
-            confidence = min(100.0, (match_count / max(kp_count, 1)) * 400)
+            confidence  = min(100.0, (match_count / max(kp_count, 1)) * 400)
 
             return {
-                "algorithm": algo_id.upper(),
-                "confidence": round(confidence, 2),
+                "algorithm":      algo_id.upper(),
+                "confidence":     round(confidence, 2),
                 "keypoint_count": kp_count,
-                "match_count": match_count,
-                "regions": regions,
-                "status": "ok"
+                "match_count":    match_count,
+                "regions":        regions,
+                "status":         "ok",
             }
 
         except Exception as e:
-            logger.warning(f"{algo_id} failed: {e}")
+            logger.warning("%s failed: %s", algo_id, e)
             return self._empty_result(algo_id, str(e))
+
+    def _filter_matches(self, matches: list, kps: list,
+                        ratio: float) -> tuple:
+        """
+        @brief Filter descriptor matches using Lowe's ratio test and spatial guard.
+
+        @param matches  Raw knnMatch results (k=3).
+        @param kps      List of detected keypoints.
+        @param ratio    Lowe's ratio threshold.
+        @return         Tuple of (good_matches list, regions list).
+        """
+        good_matches = []
+        regions      = []
+
+        for match_group in matches:
+            filtered = [m for m in match_group if m.distance > 0.01]
+            if len(filtered) < 2:
+                continue
+
+            m, n = filtered[0], filtered[1]
+            if m.distance >= ratio * n.distance:
+                continue
+
+            pt1  = kps[m.queryIdx].pt
+            pt2  = kps[m.trainIdx].pt
+            dist = np.hypot(pt1[0] - pt2[0], pt1[1] - pt2[1])
+
+            if dist > 20:
+                good_matches.append(m)
+                regions.append({
+                    "x1":      int(pt1[0]),
+                    "y1":      int(pt1[1]),
+                    "x2":      int(pt2[0]),
+                    "y2":      int(pt2[1]),
+                    "strength": float(1.0 - m.distance / max(n.distance, 1e-6)),
+                })
+
+        return good_matches, regions
 
     def _create_detector(self, algo_id: str):
         """
@@ -349,6 +356,22 @@ class ForensicsEngine:
             return ({"confidence": 0.0, "heatmap": None}, "")
 
     @staticmethod
+    def _jpeg_quality_from_avg(avg_q: float) -> int:
+        """
+        @brief Convert average quantization table value to JPEG quality estimate.
+        @param avg_q  Average value from JPEG quantization table.
+        @return       Estimated quality integer (30-100).
+        """
+        thresholds = [
+            (1,  100), (2,  99), (4,  97), (8,  92),
+            (12, 85),  (16, 80), (24, 72), (36, 65), (55, 55),
+        ]
+        for limit, quality in thresholds:
+            if avg_q <= limit:
+                return quality
+        return max(30, int(100 - avg_q))
+
+    @staticmethod
     def _estimate_jpeg_quality(img_bytes: bytes) -> int | None:
         """
         @brief JPEG quantization tablosundan orijinal kaliteyi tahmin et.
@@ -361,28 +384,18 @@ class ForensicsEngine:
             tables = []
             i      = 0
             while i < len(data) - 3:
-                if data[i] == 0xFF and data[i+1] == 0xDB:
-                    length = struct.unpack('>H', data[i+2:i+4])[0]
-                    tables.extend(list(data[i+5: i+4+length])[:64])
+                if data[i] == 0xFF and data[i + 1] == 0xDB:
+                    length = struct.unpack('>H', data[i + 2:i + 4])[0]
+                    tables.extend(list(data[i + 5: i + 4 + length])[:64])
                     i += 2 + length
                 else:
                     i += 1
 
             if not tables:
-                return None   # JPEG değil (PNG, BMP vb.)
+                return None
 
             avg_q = sum(tables[:64]) / 64.0
-            # Yaklaşık kalite dönüşümü
-            if avg_q <= 1:    return 100
-            elif avg_q <= 2:  return 99
-            elif avg_q <= 4:  return 97
-            elif avg_q <= 8:  return 92
-            elif avg_q <= 12: return 85
-            elif avg_q <= 16: return 80
-            elif avg_q <= 24: return 72
-            elif avg_q <= 36: return 65
-            elif avg_q <= 55: return 55
-            else:             return max(30, int(100 - avg_q))
+            return ForensicsEngine._jpeg_quality_from_avg(avg_q)
         except Exception:
             return None
 
@@ -393,399 +406,292 @@ class ForensicsEngine:
     def _detect_ai_generated_multisignal(self, img_np: np.ndarray,
                                           gray: np.ndarray) -> dict:
         """
-        @brief Multi-signal AI image detector using 8 independent forensic features.
-
-        @details
-        AI-generated images (GAN, Diffusion, VAE) leave characteristic forensic traces
-        that differ from real camera photographs. This method computes 8 independent
-        signals, each calibrated with empirically derived thresholds:
-
-        Signal 1 — DCT Coefficient Kurtosis:
-          Real photos follow a Laplacian distribution in DCT space (high kurtosis ~3-6).
-          AI images tend toward Gaussian (kurtosis ~2-3) due to latent space sampling.
-
-        Signal 2 — High-Pass Noise Residual Pattern:
-          Camera sensors produce specific noise floors (PRNU). AI images have either
-          too-uniform noise (diffusion) or patterned noise (GAN upsampling artifacts).
-
-        Signal 3 — Local Binary Pattern (LBP) Texture Entropy:
-          Real textures have high LBP entropy due to micro-surface variation.
-          AI images show lower entropy from over-smoothed or synthetically generated textures.
-
-        Signal 4 — FFT Radial Power Spectrum slope (beta):
-          Natural images follow 1/f^beta power law (beta≈2). AI images deviate significantly,
-          especially diffusion models which produce flatter spectra.
-
-        Signal 5 — Color Co-occurrence (GLCM) Homogeneity:
-          AI images show unusually high GLCM homogeneity due to smooth blending.
-          Real photos have lower homogeneity from real-world surface variance.
-
-        Signal 6 — Chromatic Aberration Analysis:
-          Real camera lenses produce measurable RGB channel misalignment at edges.
-          AI images have near-zero chromatic aberration (perfect channel alignment).
-
-        Signal 7 — Blocking Artifact Metric (BAM):
-          AI-generated images sometimes show periodic boundary artifacts from
-          patch-based generation (e.g. 8x8 or 16x16 grid patterns from VAEs).
-
-        Signal 8 — Saturation Distribution Kurtosis:
-          Real photos have high saturation variance (sunlight, shadow, mixed lighting).
-          AI images often show lower saturation kurtosis — more uniform color distribution.
-
+        @brief Multi-signal AI image detector — orchestrates 8 independent forensic signals.
         @param img_np  Color image (RGB, uint8).
         @param gray    Grayscale image.
-        @return        Dict with 'generated' (bool), 'confidence' (float 0-100),
-                       'signal_detail' (list), 'verdict_label' (str).
+        @return        Dict with generated, confidence, signal_detail, verdict_label.
         """
-        signals = {}
-
-        # ── Signal 1: DCT Kurtosis ──────────────────────────────────────
-        try:
-            h, w = gray.shape
-            # Use center crop to avoid border effects
-            cy, cx = h // 2, w // 2
-            crop_h, crop_w = min(256, h), min(256, w)
-            crop = gray[cy - crop_h//2: cy + crop_h//2,
-                        cx - crop_w//2: cx + crop_w//2].astype(np.float32)
-            dct = cv2.dct(crop / 255.0)
-            # Focus on mid-frequency band (avoid DC and very high freq)
-            mid_dct = dct[4:crop_h//2, 4:crop_w//2].flatten()
-            if len(mid_dct) > 10:
-                kurt = float(sstats.kurtosis(mid_dct, fisher=True))
-                if not np.isfinite(kurt):
-                    signals["dct_kurtosis"] = (50.0, "DCT kurtosis: hesaplanamadı (tek tip bölge)")
-                # Empirical calibration from real Stable Diffusion / Midjourney images:
-                # AI images: DCT kurtosis typically 0 – 4  (latent space sampling → Gaussian)
-                # Real photos: DCT kurtosis typically 5 – 30+ (heavy-tailed Laplacian)
-                elif kurt < 0.5:
-                    signals["dct_kurtosis"] = (90.0, f"Çok düşük DCT kurtosis ({kurt:.2f}) — diffusion/GAN imzası")
-                elif kurt < 2.5:
-                    signals["dct_kurtosis"] = (72.0, f"Düşük DCT kurtosis ({kurt:.2f}) — AI olası")
-                elif kurt < 5.0:
-                    signals["dct_kurtosis"] = (45.0, f"Orta DCT kurtosis ({kurt:.2f}) — belirsiz")
-                elif kurt < 12.0:
-                    signals["dct_kurtosis"] = (20.0, f"Yüksek DCT kurtosis ({kurt:.2f}) — doğal fotoğraf")
-                else:
-                    signals["dct_kurtosis"] = (10.0, f"Çok yüksek DCT kurtosis ({kurt:.2f}) — kesinlikle gerçek")
-            else:
-                signals["dct_kurtosis"] = (50.0, "DCT kurtosis: yetersiz veri")
-        except Exception as e:
-            logger.warning(f"Signal 1 (DCT kurtosis) failed: {e}")
-            signals["dct_kurtosis"] = (50.0, "DCT kurtosis: hata")
-
-        # ── Signal 2: High-Pass Noise Residual ─────────────────────────
-        try:
-            gray_f = gray.astype(np.float32)
-            # Noise residual: subtract 3x3 median filtered version
-            blurred = cv2.GaussianBlur(gray_f, (3, 3), 0)
-            residual = gray_f - blurred
-            noise_std = float(residual.std())
-            # Compute spatial autocorrelation of residual (periodicity check)
-            # GAN upsampling leaves periodic noise patterns
-            res_norm = residual - residual.mean()
-            if res_norm.std() > 0:
-                # Horizontal autocorrelation at lag 1,2,4,8
-                row_means = res_norm.mean(axis=0)
-                ac_lag1 = float(np.corrcoef(row_means[:-1], row_means[1:])[0, 1])
-                ac_lag4 = float(np.corrcoef(row_means[:-4], row_means[4:])[0, 1])
-                periodicity = max(abs(ac_lag1), abs(ac_lag4))
-            else:
-                periodicity = 0.0
-
-            # Empirical calibration:
-            # Stable Diffusion / Midjourney: noise_std typically 0.5 – 4.0 (too clean)
-            # Real camera photos: noise_std typically 6.0 – 25.0 (sensor noise)
-            # Heavily compressed JPEGs: noise_std 3-8 (compression noise)
-            if noise_std < 2.0:
-                signals["noise_residual"] = (88.0, f"Çok düşük gürültü katmanı ({noise_std:.2f}) — diffusion/upscale imzası")
-            elif noise_std < 4.5:
-                signals["noise_residual"] = (68.0, f"Düşük gürültü ({noise_std:.2f}) — AI olası")
-            elif periodicity > 0.4:
-                signals["noise_residual"] = (72.0, f"Periyodik gürültü deseni (ac={periodicity:.2f}) — GAN upsampling")
-            elif noise_std > 14.0:
-                signals["noise_residual"] = (15.0, f"Yüksek doğal gürültü ({noise_std:.2f}) — kamera sensörü")
-            elif noise_std > 8.0:
-                signals["noise_residual"] = (25.0, f"Normal kamera gürültüsü ({noise_std:.2f})")
-            else:
-                signals["noise_residual"] = (42.0, f"Orta gürültü ({noise_std:.2f}) — sıkıştırılmış olabilir")
-        except Exception as e:
-            logger.warning(f"Signal 2 (noise) failed: {e}")
-            signals["noise_residual"] = (50.0, "Gürültü analizi: hata")
-
-        # ── Signal 3: LBP Texture Entropy ──────────────────────────────
-        try:
-            gray_u8 = gray.astype(np.uint8)
-            lbp = local_binary_pattern(gray_u8, P=8, R=1, method='uniform')
-            # Compute histogram entropy of LBP
-            hist, _ = np.histogram(lbp.ravel(), bins=10, range=(0, 10), density=True)
-            hist = np.clip(hist, 1e-9, None)
-            entropy = float(-np.sum(hist * np.log2(hist)))
-            max_entropy = np.log2(10)
-            norm_entropy = entropy / max_entropy  # 0-1
-
-            # AI images: lower entropy (smoother, less texture variation)
-            # Real photos: higher entropy (rich micro-textures)
-            if norm_entropy < 0.65:
-                signals["lbp_entropy"] = (78.0, f"Düşük LBP entropi ({norm_entropy:.3f}) — düzgün yapay yüzey")
-            elif norm_entropy < 0.78:
-                signals["lbp_entropy"] = (52.0, f"Orta LBP entropi ({norm_entropy:.3f})")
-            elif norm_entropy < 0.88:
-                signals["lbp_entropy"] = (28.0, f"Yüksek LBP entropi ({norm_entropy:.3f}) — doğal doku")
-            else:
-                signals["lbp_entropy"] = (15.0, f"Çok yüksek LBP entropi ({norm_entropy:.3f}) — zengin doku")
-        except Exception as e:
-            logger.warning(f"Signal 3 (LBP) failed: {e}")
-            signals["lbp_entropy"] = (50.0, "LBP analizi: hata")
-
-        # ── Signal 4: FFT Radial Power Spectrum (1/f law) ──────────────
-        try:
-            h, w = gray.shape
-            fft_img = sfft.fft2(gray.astype(np.float64))
-            fft_shifted = sfft.fftshift(fft_img)
-            power = np.abs(fft_shifted) ** 2
-
-            # Build radial frequency bins
-            cy2, cx2 = h // 2, w // 2
-            Y, X = np.ogrid[:h, :w]
-            R = np.sqrt((X - cx2)**2 + (Y - cy2)**2).astype(int)
-            max_r = min(cx2, cy2)
-            radial_power = np.array([
-                power[R == r].mean() for r in range(1, max_r)
-                if np.any(R == r)
-            ])
-
-            if len(radial_power) > 10:
-                # Fit log-log linear to get beta exponent
-                freqs = np.arange(1, len(radial_power) + 1)
-                log_f = np.log10(freqs)
-                log_p = np.log10(radial_power + 1e-12)
-                # Linear fit
-                valid = np.isfinite(log_p)
-                if valid.sum() > 5:
-                    beta = float(np.polyfit(log_f[valid], log_p[valid], 1)[0])
-                    # Empirical from Stable Diffusion / Midjourney / DALL-E:
-                    # AI (diffusion): beta typically -1.0 to -1.6  (too flat, over-smooth)
-                    # AI (GAN):       beta typically -0.3 to -1.0  (very flat, sharpened)
-                    # Real photos:    beta typically -2.0 to -2.8  (natural 1/f^2 falloff)
-                    # Scanned art:    beta < -3.0 (very steep)
-                    if beta > -0.8:
-                        signals["fft_beta"] = (86.0, f"Çok düz güç spektrumu (β={beta:.2f}) — GAN/upscale imzası")
-                    elif beta > -1.5:
-                        signals["fft_beta"] = (73.0, f"Düz spektrum (β={beta:.2f}) — diffusion model imzası")
-                    elif beta > -2.0:
-                        signals["fft_beta"] = (50.0, f"Sınırda spektrum (β={beta:.2f}) — belirsiz")
-                    elif beta >= -2.8:
-                        signals["fft_beta"] = (18.0, f"Doğal 1/f² spektrum (β={beta:.2f}) — gerçek fotoğraf")
-                    elif beta < -3.5:
-                        signals["fft_beta"] = (55.0, f"Aşırı dik spektrum (β={beta:.2f}) — GAN artefakt")
-                    else:
-                        signals["fft_beta"] = (35.0, f"Derin/sanat spektrum (β={beta:.2f})")
-                else:
-                    signals["fft_beta"] = (50.0, "FFT beta: yetersiz veri")
-            else:
-                signals["fft_beta"] = (50.0, "FFT beta: çok küçük görüntü")
-        except Exception as e:
-            logger.warning(f"Signal 4 (FFT beta) failed: {e}")
-            signals["fft_beta"] = (50.0, "FFT spektrum: hata")
-
-        # ── Signal 5: GLCM Homogeneity ──────────────────────────────────
-        try:
-            # Quantize to 8 levels for speed
-            g8 = (gray.astype(np.float32) / 32).astype(np.uint8).clip(0, 7)
-            # Horizontal co-occurrence matrix
-            co = np.zeros((8, 8), dtype=np.float64)
-            co[g8[:-1, :].ravel(), g8[1:, :].ravel()] += 1
-            total = co.sum()
-            if total > 0:
-                co /= total
-            # Homogeneity = sum( co[i,j] / (1 + |i-j|) )
-            i_idx, j_idx = np.meshgrid(np.arange(8), np.arange(8), indexing='ij')
-            homogeneity = float(np.sum(co / (1.0 + np.abs(i_idx - j_idx))))
-
-            # AI images: homogeneity > 0.7 (too smooth transitions)
-            # Real photos: 0.4 - 0.65
-            if homogeneity > 0.75:
-                signals["glcm_homogeneity"] = (80.0, f"Çok yüksek GLCM homojenlik ({homogeneity:.3f}) — yapay yumuşaklık")
-            elif homogeneity > 0.65:
-                signals["glcm_homogeneity"] = (58.0, f"Yüksek GLCM homojenlik ({homogeneity:.3f})")
-            elif homogeneity > 0.45:
-                signals["glcm_homogeneity"] = (25.0, f"Normal GLCM homojenlik ({homogeneity:.3f})")
-            else:
-                signals["glcm_homogeneity"] = (15.0, f"Düşük GLCM homojenlik ({homogeneity:.3f}) — zengin doku")
-        except Exception as e:
-            logger.warning(f"Signal 5 (GLCM) failed: {e}")
-            signals["glcm_homogeneity"] = (50.0, "GLCM: hata")
-
-        # ── Signal 6: Chromatic Aberration ──────────────────────────────
-        try:
-            r_ch = img_np[:, :, 0].astype(np.float32)
-            g_ch = img_np[:, :, 1].astype(np.float32)
-            b_ch = img_np[:, :, 2].astype(np.float32)
-
-            # Detect edges in green channel (highest resolution in Bayer)
-            edges_g = cv2.Canny(g_ch.astype(np.uint8), 50, 150)
-            edge_mask = edges_g > 0
-
-            if edge_mask.sum() > 100:
-                # At edges: measure R-G and B-G channel differences
-                rg_diff = float(np.abs((r_ch - g_ch)[edge_mask]).mean())
-                bg_diff = float(np.abs((b_ch - g_ch)[edge_mask]).mean())
-                ca_score = (rg_diff + bg_diff) / 2.0
-
-                # Empirical calibration:
-                # AI images (SD/MJ/DALL-E): CA = 0.2 – 1.5  (near-perfect channel alignment)
-                # Real DSLR photos:          CA = 2.0 – 10.0 (lens chromatic aberration)
-                # Phone photos (corrected):  CA = 0.8 – 3.0
-                # Heavily compressed JPEG:   CA = 1.0 – 5.0
-                if ca_score < 0.8:
-                    signals["chromatic_aberration"] = (87.0, f"Sıfıra yakın kromatik aberasyon (CA={ca_score:.2f}) — lens yok → AI")
-                elif ca_score < 1.8:
-                    signals["chromatic_aberration"] = (63.0, f"Çok düşük CA ({ca_score:.2f}) — AI olası veya dijital düzeltme")
-                elif ca_score <= 7.0:
-                    signals["chromatic_aberration"] = (16.0, f"Gerçekçi lens aberasyonu (CA={ca_score:.2f}) — kamera imzası")
-                else:
-                    signals["chromatic_aberration"] = (38.0, f"Yüksek CA ({ca_score:.2f}) — aşırı sıkıştırma veya lens")
-            else:
-                signals["chromatic_aberration"] = (50.0, "Kromatik aberasyon: kenar bulunamadı")
-        except Exception as e:
-            logger.warning(f"Signal 6 (CA) failed: {e}")
-            signals["chromatic_aberration"] = (50.0, "Kromatik aberasyon: hata")
-
-        # ── Signal 7: Blocking Artifact Metric ──────────────────────────
-        try:
-            h, w = gray.shape
-            gray_f2 = gray.astype(np.float64)
-            # Check 8-pixel boundary periodicity (JPEG / VAE block pattern)
-            h_diffs, v_diffs = [], []
-            for bsize in [8, 16]:
-                # Horizontal block boundaries
-                for y in range(bsize, h - bsize, bsize):
-                    row_diff = float(np.abs(gray_f2[y, :] - gray_f2[y-1, :]).mean())
-                    interior = float(np.abs(np.diff(gray_f2[y-bsize:y, :], axis=0)).mean())
-                    if interior > 0:
-                        h_diffs.append(row_diff / (interior + 1e-6))
-                # Vertical block boundaries
-                for x in range(bsize, w - bsize, bsize):
-                    col_diff = float(np.abs(gray_f2[:, x] - gray_f2[:, x-1]).mean())
-                    interior = float(np.abs(np.diff(gray_f2[:, x-bsize:x], axis=1)).mean())
-                    if interior > 0:
-                        v_diffs.append(col_diff / (interior + 1e-6))
-
-            if h_diffs and v_diffs:
-                bam = float(np.mean(h_diffs + v_diffs))
-                # BAM > 1.3 → boundary stronger than interior → block artifact
-                if bam > 2.0:
-                    signals["blocking_artifact"] = (72.0, f"Güçlü blok artefakları (BAM={bam:.2f}) — VAE/GAN ızgara imzası")
-                elif bam > 1.4:
-                    signals["blocking_artifact"] = (48.0, f"Orta blok artefakları (BAM={bam:.2f})")
-                else:
-                    signals["blocking_artifact"] = (20.0, f"Blok artefakı yok (BAM={bam:.2f})")
-            else:
-                signals["blocking_artifact"] = (40.0, "Blok analizi: yetersiz veri")
-        except Exception as e:
-            logger.warning(f"Signal 7 (BAM) failed: {e}")
-            signals["blocking_artifact"] = (50.0, "Blok analizi: hata")
-
-        # ── Signal 8: Saturation Distribution Kurtosis ──────────────────
-        try:
-            hsv = cv2.cvtColor(img_np, cv2.COLOR_RGB2HSV)
-            saturation = hsv[:, :, 1].astype(np.float32).ravel()
-
-            if saturation.std() > 1e-3:
-                sat_kurt = float(sstats.kurtosis(saturation, fisher=True))
-
-                # Empirical calibration for HSV saturation channel kurtosis:
-                # Stable Diffusion / Midjourney: sat_kurt typically -0.5 to 1.5
-                #   (vivid, uniform saturation — aesthetic palette)
-                # Real outdoor photos: sat_kurt typically 2.0 – 8.0
-                #   (mix of desaturated sky/shadows + vivid subjects)
-                # Studio photos: sat_kurt 0.5 – 3.0 (controlled lighting)
-                if sat_kurt < 0.3:
-                    signals["saturation_kurtosis"] = (78.0, f"Düzgün doygunluk dağılımı (kurt={sat_kurt:.2f}) — AI renk paleti")
-                elif sat_kurt < 1.5:
-                    signals["saturation_kurtosis"] = (56.0, f"Orta doygunluk kurtosis ({sat_kurt:.2f}) — AI olası")
-                elif sat_kurt < 3.0:
-                    signals["saturation_kurtosis"] = (38.0, f"Normal doygunluk kurtosis ({sat_kurt:.2f}) — stüdyo fotoğrafı")
-                elif sat_kurt >= 3.0:
-                    signals["saturation_kurtosis"] = (16.0, f"Yüksek doygunluk kurtosis ({sat_kurt:.2f}) — doğal aydınlatma")
-            else:
-                # Near-zero saturation (grayscale image)
-                signals["saturation_kurtosis"] = (55.0, "Grayscale görüntü — doygunluk analizi sınırlı")
-        except Exception as e:
-            logger.warning(f"Signal 8 (saturation) failed: {e}")
-            signals["saturation_kurtosis"] = (50.0, "Doygunluk analizi: hata")
-
-        # ── Aggregate: weighted majority voting ─────────────────────────
-        # Signal weights (empirically tuned for SD/MJ vs real photo discrimination):
-        # DCT kurtosis and FFT beta are the most reliable signals.
-        # Noise residual and CA are highly discriminative but can be fooled by compression.
-        weights = {
-            "dct_kurtosis":         0.20,  # Most reliable for diffusion models
-            "noise_residual":       0.18,  # Very reliable: cameras have noise, AI doesn't
-            "fft_beta":             0.20,  # Strong signal: 1/f law deviation
-            "lbp_entropy":          0.10,  # Moderate: texture micro-variation
-            "glcm_homogeneity":     0.08,  # Moderate: smoothness proxy
-            "chromatic_aberration": 0.14,  # Strong: lens physics don't lie
-            "blocking_artifact":    0.05,  # Weak: only useful for some GAN architectures
-            "saturation_kurtosis":  0.05,  # Supplementary: color palette analysis
+        signals = {
+            "dct_kurtosis":         self._signal_dct_kurtosis(gray),
+            "noise_residual":       self._signal_noise_residual(gray),
+            "lbp_entropy":          self._signal_lbp_entropy(gray),
+            "fft_beta":             self._signal_fft_beta(gray),
+            "glcm_homogeneity":     self._signal_glcm_homogeneity(gray),
+            "chromatic_aberration": self._signal_chromatic_aberration(img_np),
+            "blocking_artifact":    self._signal_blocking_artifact(gray),
+            "saturation_kurtosis":  self._signal_saturation_kurtosis(img_np),
         }
 
-        weighted_sum  = sum(signals[k][0] * weights[k] for k in weights if k in signals)
-        weight_total  = sum(weights[k] for k in weights if k in signals)
-        final_confidence = weighted_sum / weight_total if weight_total > 0 else 50.0
+        weights = {
+            "dct_kurtosis":         0.20,
+            "noise_residual":       0.18,
+            "fft_beta":             0.20,
+            "lbp_entropy":          0.10,
+            "glcm_homogeneity":     0.08,
+            "chromatic_aberration": 0.14,
+            "blocking_artifact":    0.05,
+            "saturation_kurtosis":  0.05,
+        }
 
-        # Calibration: steeper sigmoid (k=6 instead of 8) pushes scores away from center
-        # Decision boundary at 52 (slight bias toward "not AI" to reduce false positives)
-        calib = float(1.0 / (1.0 + np.exp(-(final_confidence - 50.0) / 6.0)) * 100.0)
+        weighted_sum   = sum(signals[k][0] * weights[k] for k in weights if k in signals)
+        weight_total   = sum(weights[k] for k in weights if k in signals)
+        final_conf     = weighted_sum / weight_total if weight_total > 0 else 50.0
+        calib          = float(1.0 / (1.0 + np.exp(-(final_conf - 50.0) / 6.0)) * 100.0)
 
-        # Count how many signals individually vote "AI" (score >= 60)
-        ai_vote_count = sum(1 for k in weights if k in signals and signals[k][0] >= 60.0)
-        total_signals = len([k for k in weights if k in signals])
+        ai_vote_count  = sum(1 for k in weights if k in signals and signals[k][0] >= 60.0)
+        total_signals  = len([k for k in weights if k in signals])
 
-        # Boost confidence if majority of signals vote AI
-        if ai_vote_count >= 5 and calib < 70:
-            calib = min(95.0, calib + 12.0)
-        elif ai_vote_count >= 4 and calib < 60:
-            calib = min(85.0, calib + 8.0)
-        # Suppress if very few signals vote AI (reduce false positives)
-        elif ai_vote_count <= 1 and calib > 45:
-            calib = max(10.0, calib - 10.0)
-
-        generated = calib >= 55.0
-
-        # Build detail list for UI
-        signal_detail = [
-            {
-                "name": k.replace("_", " ").title(),
-                "score": round(signals[k][0], 1),
-                "label": signals[k][1]
-            }
+        calib = self._calibrate_ai_score(calib, ai_vote_count)
+        generated      = calib >= 55.0
+        signal_detail  = [
+            {"name": k.replace("_", " ").title(),
+             "score": round(signals[k][0], 1),
+             "label": signals[k][1]}
             for k in weights if k in signals
         ]
+        verdict_label  = self._build_verdict_label(calib, ai_vote_count, total_signals)
 
-        # Verdict label
-        if calib >= 80:
-            verdict_label = f"AI ÜRETİMİ — KESİN ({ai_vote_count}/{total_signals} sinyal)"
-        elif calib >= 65:
-            verdict_label = f"AI ÜRETİMİ — YÜKSEK ({ai_vote_count}/{total_signals} sinyal)"
-        elif calib >= 50:
-            verdict_label = f"AI ÜRETİMİ — ZAYIF ({ai_vote_count}/{total_signals} sinyal)"
-        elif calib >= 35:
-            verdict_label = f"GERÇEK — ZAYIF ({ai_vote_count}/{total_signals} sinyal)"
-        elif calib >= 20:
-            verdict_label = f"GERÇEK — YÜKSEK ({ai_vote_count}/{total_signals} sinyal)"
-        else:
-            verdict_label = f"GERÇEK — KESİN ({ai_vote_count}/{total_signals} sinyal)"
-
-        logger.info(f"AI Detection: {calib:.1f}% [{verdict_label}] | "
-                    + " | ".join(f"{k}={signals[k][0]:.0f}" for k in weights if k in signals))
-
+        logger.info("AI Detection: %.1f%% [%s]", calib, verdict_label)
         return {
-            "generated":    generated,
-            "confidence":   round(calib, 2),
+            "generated":     generated,
+            "confidence":    round(calib, 2),
             "signal_detail": signal_detail,
             "verdict_label": verdict_label,
         }
+
+    @staticmethod
+    def _calibrate_ai_score(calib: float, ai_vote_count: int) -> float:
+        """@brief Apply voting-based boost/suppression to raw AI confidence."""
+        if ai_vote_count >= 5 and calib < 70:
+            return min(95.0, calib + 12.0)
+        if ai_vote_count >= 4 and calib < 60:
+            return min(85.0, calib + 8.0)
+        if ai_vote_count <= 1 and calib > 45:
+            return max(10.0, calib - 10.0)
+        return calib
+
+    @staticmethod
+    def _build_verdict_label(calib: float, votes: int, total: int) -> str:
+        """@brief Build human-readable verdict string from calibrated confidence."""
+        tag = f"({votes}/{total} sinyal)"
+        if calib >= 80:
+            return f"AI ÜRETİMİ — KESİN {tag}"
+        if calib >= 65:
+            return f"AI ÜRETİMİ — YÜKSEK {tag}"
+        if calib >= 50:
+            return f"AI ÜRETİMİ — ZAYIF {tag}"
+        if calib >= 35:
+            return f"GERÇEK — ZAYIF {tag}"
+        if calib >= 20:
+            return f"GERÇEK — YÜKSEK {tag}"
+        return f"GERÇEK — KESİN {tag}"
+
+    # ------------------------------------------------------------------
+    # Individual signal extractors
+    # ------------------------------------------------------------------
+
+    def _signal_dct_kurtosis(self, gray: np.ndarray) -> tuple:
+        """@brief Signal 1: DCT coefficient kurtosis."""
+        try:
+            h, w    = gray.shape
+            cy, cx  = h // 2, w // 2
+            ch, cw  = min(256, h), min(256, w)
+            crop    = gray[cy-ch//2:cy+ch//2, cx-cw//2:cx+cw//2].astype(np.float32)
+            dct     = cv2.dct(crop / 255.0)
+            mid_dct = dct[4:ch//2, 4:cw//2].flatten()
+            if len(mid_dct) <= 10:
+                return (50.0, "DCT kurtosis: yetersiz veri")
+            kurt = float(sstats.kurtosis(mid_dct, fisher=True))
+            if not np.isfinite(kurt):
+                return (50.0, "DCT kurtosis: hesaplanamadı")
+            if kurt < 0.5:
+                return (90.0, f"Çok düşük DCT kurtosis ({kurt:.2f}) — diffusion/GAN imzası")
+            if kurt < 2.5:
+                return (72.0, f"Düşük DCT kurtosis ({kurt:.2f}) — AI olası")
+            if kurt < 5.0:
+                return (45.0, f"Orta DCT kurtosis ({kurt:.2f}) — belirsiz")
+            if kurt < 12.0:
+                return (20.0, f"Yüksek DCT kurtosis ({kurt:.2f}) — doğal fotoğraf")
+            return (10.0, f"Çok yüksek DCT kurtosis ({kurt:.2f}) — kesinlikle gerçek")
+        except Exception as e:
+            logger.warning("Signal 1 (DCT) failed: %s", e)
+            return (50.0, "DCT kurtosis: hata")
+
+    def _signal_noise_residual(self, gray: np.ndarray) -> tuple:
+        """@brief Signal 2: High-pass noise residual and periodicity."""
+        try:
+            gray_f   = gray.astype(np.float32)
+            blurred  = cv2.GaussianBlur(gray_f, (3, 3), 0)
+            residual = gray_f - blurred
+            noise_std = float(residual.std())
+            res_norm  = residual - residual.mean()
+            periodicity = 0.0
+            if res_norm.std() > 0:
+                row_means   = res_norm.mean(axis=0)
+                ac_lag1     = float(np.corrcoef(row_means[:-1], row_means[1:])[0, 1])
+                ac_lag4     = float(np.corrcoef(row_means[:-4], row_means[4:])[0, 1])
+                periodicity = max(abs(ac_lag1), abs(ac_lag4))
+            if noise_std < 2.0:
+                return (88.0, f"Çok düşük gürültü ({noise_std:.2f}) — diffusion imzası")
+            if noise_std < 4.5:
+                return (68.0, f"Düşük gürültü ({noise_std:.2f}) — AI olası")
+            if periodicity > 0.4:
+                return (72.0, f"Periyodik gürültü (ac={periodicity:.2f}) — GAN upsampling")
+            if noise_std > 14.0:
+                return (15.0, f"Yüksek doğal gürültü ({noise_std:.2f}) — kamera sensörü")
+            if noise_std > 8.0:
+                return (25.0, f"Normal kamera gürültüsü ({noise_std:.2f})")
+            return (42.0, f"Orta gürültü ({noise_std:.2f}) — sıkıştırılmış olabilir")
+        except Exception as e:
+            logger.warning("Signal 2 (noise) failed: %s", e)
+            return (50.0, "Gürültü analizi: hata")
+
+    def _signal_lbp_entropy(self, gray: np.ndarray) -> tuple:
+        """@brief Signal 3: Local Binary Pattern texture entropy."""
+        try:
+            lbp  = local_binary_pattern(gray.astype(np.uint8), P=8, R=1, method='uniform')
+            hist, _ = np.histogram(lbp.ravel(), bins=10, range=(0, 10), density=True)
+            hist    = np.clip(hist, 1e-9, None)
+            norm_e  = float(-np.sum(hist * np.log2(hist))) / np.log2(10)
+            if norm_e < 0.65:
+                return (78.0, f"Düşük LBP entropi ({norm_e:.3f}) — yapay yüzey")
+            if norm_e < 0.78:
+                return (52.0, f"Orta LBP entropi ({norm_e:.3f})")
+            if norm_e < 0.88:
+                return (28.0, f"Yüksek LBP entropi ({norm_e:.3f}) — doğal doku")
+            return (15.0, f"Çok yüksek LBP entropi ({norm_e:.3f}) — zengin doku")
+        except Exception as e:
+            logger.warning("Signal 3 (LBP) failed: %s", e)
+            return (50.0, "LBP analizi: hata")
+
+    def _signal_fft_beta(self, gray: np.ndarray) -> tuple:
+        """@brief Signal 4: FFT radial power spectrum 1/f beta exponent."""
+        try:
+            h, w       = gray.shape
+            fft_sh     = sfft.fftshift(sfft.fft2(gray.astype(np.float64)))
+            power      = np.abs(fft_sh) ** 2
+            cy2, cx2   = h // 2, w // 2
+            Y, X       = np.ogrid[:h, :w]
+            R          = np.sqrt((X - cx2)**2 + (Y - cy2)**2).astype(int)
+            max_r      = min(cx2, cy2)
+            rad_power  = np.array([power[R == r].mean()
+                                   for r in range(1, max_r) if np.any(R == r)])
+            if len(rad_power) <= 10:
+                return (50.0, "FFT beta: çok küçük görüntü")
+            log_f  = np.log10(np.arange(1, len(rad_power) + 1))
+            log_p  = np.log10(rad_power + 1e-12)
+            valid  = np.isfinite(log_p)
+            if valid.sum() <= 5:
+                return (50.0, "FFT beta: yetersiz veri")
+            beta = float(np.polyfit(log_f[valid], log_p[valid], 1)[0])
+            if beta > -0.8:
+                return (86.0, f"Çok düz spektrum (β={beta:.2f}) — GAN imzası")
+            if beta > -1.5:
+                return (73.0, f"Düz spektrum (β={beta:.2f}) — diffusion imzası")
+            if beta > -2.0:
+                return (50.0, f"Sınırda spektrum (β={beta:.2f}) — belirsiz")
+            if beta >= -2.8:
+                return (18.0, f"Doğal 1/f² spektrum (β={beta:.2f}) — gerçek fotoğraf")
+            if beta < -3.5:
+                return (55.0, f"Aşırı dik spektrum (β={beta:.2f}) — GAN artefakt")
+            return (35.0, f"Derin spektrum (β={beta:.2f})")
+        except Exception as e:
+            logger.warning("Signal 4 (FFT) failed: %s", e)
+            return (50.0, "FFT spektrum: hata")
+
+    def _signal_glcm_homogeneity(self, gray: np.ndarray) -> tuple:
+        """@brief Signal 5: GLCM texture homogeneity."""
+        try:
+            g8          = (gray.astype(np.float32) / 32).astype(np.uint8).clip(0, 7)
+            co          = np.zeros((8, 8), dtype=np.float64)
+            co[g8[:-1, :].ravel(), g8[1:, :].ravel()] += 1
+            total_co    = co.sum()
+            if total_co > 0:
+                co /= total_co
+            i_idx, j_idx = np.meshgrid(np.arange(8), np.arange(8), indexing='ij')
+            hom = float(np.sum(co / (1.0 + np.abs(i_idx - j_idx))))
+            if hom > 0.75:
+                return (80.0, f"Çok yüksek GLCM homojenlik ({hom:.3f}) — yapay yumuşaklık")
+            if hom > 0.65:
+                return (58.0, f"Yüksek GLCM homojenlik ({hom:.3f})")
+            if hom > 0.45:
+                return (25.0, f"Normal GLCM homojenlik ({hom:.3f})")
+            return (15.0, f"Düşük GLCM homojenlik ({hom:.3f}) — zengin doku")
+        except Exception as e:
+            logger.warning("Signal 5 (GLCM) failed: %s", e)
+            return (50.0, "GLCM: hata")
+
+    def _signal_chromatic_aberration(self, img_np: np.ndarray) -> tuple:
+        """@brief Signal 6: Chromatic aberration at image edges."""
+        try:
+            r_ch     = img_np[:, :, 0].astype(np.float32)
+            g_ch     = img_np[:, :, 1].astype(np.float32)
+            b_ch     = img_np[:, :, 2].astype(np.float32)
+            edge_mask = cv2.Canny(g_ch.astype(np.uint8), 50, 150) > 0
+            if edge_mask.sum() <= 100:
+                return (50.0, "Kromatik aberasyon: kenar bulunamadı")
+            ca = (float(np.abs((r_ch - g_ch)[edge_mask]).mean())
+                  + float(np.abs((b_ch - g_ch)[edge_mask]).mean())) / 2.0
+            if ca < 0.8:
+                return (87.0, f"Sıfıra yakın CA ({ca:.2f}) — lens yok → AI")
+            if ca < 1.8:
+                return (63.0, f"Çok düşük CA ({ca:.2f}) — AI olası")
+            if ca <= 7.0:
+                return (16.0, f"Gerçekçi lens aberasyonu (CA={ca:.2f}) — kamera imzası")
+            return (38.0, f"Yüksek CA ({ca:.2f}) — aşırı sıkıştırma")
+        except Exception as e:
+            logger.warning("Signal 6 (CA) failed: %s", e)
+            return (50.0, "Kromatik aberasyon: hata")
+
+    def _signal_blocking_artifact(self, gray: np.ndarray) -> tuple:
+        """@brief Signal 7: Block boundary artifact metric (BAM)."""
+        try:
+            h, w       = gray.shape
+            gray_f     = gray.astype(np.float64)
+            h_diffs, v_diffs = [], []
+            for bsize in [8, 16]:
+                for y in range(bsize, h - bsize, bsize):
+                    row_diff = float(np.abs(gray_f[y, :] - gray_f[y-1, :]).mean())
+                    interior = float(np.abs(np.diff(gray_f[y-bsize:y, :], axis=0)).mean())
+                    if interior > 0:
+                        h_diffs.append(row_diff / (interior + 1e-6))
+                for x in range(bsize, w - bsize, bsize):
+                    col_diff = float(np.abs(gray_f[:, x] - gray_f[:, x-1]).mean())
+                    interior = float(np.abs(np.diff(gray_f[:, x-bsize:x], axis=1)).mean())
+                    if interior > 0:
+                        v_diffs.append(col_diff / (interior + 1e-6))
+            if not h_diffs or not v_diffs:
+                return (40.0, "Blok analizi: yetersiz veri")
+            bam = float(np.mean(h_diffs + v_diffs))
+            if bam > 2.0:
+                return (72.0, f"Güçlü blok artefakları (BAM={bam:.2f}) — VAE/GAN ızgara imzası")
+            if bam > 1.4:
+                return (48.0, f"Orta blok artefakları (BAM={bam:.2f})")
+            return (20.0, f"Blok artefakı yok (BAM={bam:.2f})")
+        except Exception as e:
+            logger.warning("Signal 7 (BAM) failed: %s", e)
+            return (50.0, "Blok analizi: hata")
+
+    def _signal_saturation_kurtosis(self, img_np: np.ndarray) -> tuple:
+        """@brief Signal 8: HSV saturation channel kurtosis."""
+        try:
+            hsv = cv2.cvtColor(img_np, cv2.COLOR_RGB2HSV)
+            sat = hsv[:, :, 1].astype(np.float32).ravel()
+            if sat.std() <= 1e-3:
+                return (55.0, "Grayscale görüntü — doygunluk analizi sınırlı")
+            sat_kurt = float(sstats.kurtosis(sat, fisher=True))
+            if sat_kurt < 0.3:
+                return (78.0, f"Düzgün doygunluk ({sat_kurt:.2f}) — AI renk paleti")
+            if sat_kurt < 1.5:
+                return (56.0, f"Orta doygunluk kurtosis ({sat_kurt:.2f}) — AI olası")
+            if sat_kurt < 3.0:
+                return (38.0, f"Normal doygunluk kurtosis ({sat_kurt:.2f}) — stüdyo fotoğrafı")
+            return (16.0, f"Yüksek doygunluk kurtosis ({sat_kurt:.2f}) — doğal aydınlatma")
+        except Exception as e:
+            logger.warning("Signal 8 (saturation) failed: %s", e)
+            return (50.0, "Doygunluk analizi: hata")
+
+    # ------------------------------------------------------------------
     # Heatmap & Visualization
     # ------------------------------------------------------------------
 

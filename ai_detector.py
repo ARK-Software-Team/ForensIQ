@@ -471,8 +471,17 @@ class AIDetector:
             mag = np.sqrt(gx ** 2 + gy ** 2).flatten()
             mcv = float(mag.std() / (mag.mean() + 1e-6))
 
-            score = 35.0 if ratio > 0.75 else (30.0 if ratio < 0.20 else 10.0)
-            score += 35.0 if mcv < 1.5 else (15.0 if mcv < 2.5 else 0.0)
+            if ratio > 0.75:
+                score = 35.0
+            elif ratio < 0.20:
+                score = 30.0
+            else:
+                score = 10.0
+
+            if mcv < 1.5:
+                score += 35.0
+            elif mcv < 2.5:
+                score += 15.0
 
             return {
                 "score": min(100.0, score),
@@ -504,7 +513,10 @@ class AIDetector:
             elif iso > 0.90:
                 score = 8.0
 
-            score += 30.0 if sm > 0.05 else (12.0 if sm > 0.02 else 0.0)
+            if sm > 0.05:
+                score += 30.0
+            elif sm > 0.02:
+                score += 12.0
 
             return {
                 "score": min(100.0, score),
