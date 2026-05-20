@@ -647,10 +647,10 @@ aside {
     <span class="tag">v1.0</span>
   </div>
   <nav class="nav-pills">
-    <a class="pill active" onclick="showPage('analyzer')">🔍 Analiz</a>
-    <a class="pill" onclick="showPage('taskboard')" style="display:none">📋 Task Board</a>
-    <a class="pill" onclick="showPage('fsm')" style="display:none">⚙️ FSM / Emek</a>
-    <a class="pill" onclick="showPage('manual')" style="display:none">📖 Kılavuz</a>
+    <button class="pill active" onclick="showPage('analyzer')">🔍 Analiz</button>
+    <button class="pill" onclick="showPage('taskboard')" style="display:none">📋 Task Board</button>
+    <button class="pill" onclick="showPage('fsm')" style="display:none">⚙️ FSM / Emek</button>
+    <button class="pill" onclick="showPage('manual')" style="display:none">📖 Kılavuz</button>
   </nav>
 </header>
 
@@ -820,7 +820,10 @@ aside {
   </div>
   <div style="padding:0 36px">
     <div class="section-label">Emek Hesabı (FSM Yöntemi)</div>
-    <table class="effort-table" id="effort-table"></table>
+    <table class="effort-table" id="effort-table">
+      <thead><tr><th scope="col">FSM GEÇİŞ</th><th scope="col">GÖREV</th><th scope="col">EMEK (SAAT)</th></tr></thead>
+      <tbody></tbody>
+    </table>
   </div>
 </div>
 
@@ -853,7 +856,7 @@ const API = "http://localhost:5050/api";
 // ============================================================
 // INIT
 // ============================================================
-window.addEventListener("DOMContentLoaded", () => {
+globalThis.addEventListener("DOMContentLoaded", () => {
   buildAlgoGrid();
   buildTaskBoard();
   buildFsmPage();
@@ -961,6 +964,7 @@ async function runAnalysis() {
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       data = await res.json();
     } catch(fetchErr) {
+      console.error("Fetch error:", fetchErr);
       data = generateDemoResult();
       toast("Backend bağlantısı yok — demo sonuç gösteriliyor.", "error");
     }
@@ -1061,22 +1065,32 @@ document.getElementById("verdict-sub").textContent =
   const results = data.algorithm_results || {};
   grid.innerHTML = Object.values(results).map(r => {
     const conf = r.confidence || 0;
-    const level = conf > 60 ? "high" : conf > 30 ? "medium" : "low";
+    let level;
+    if (conf > 60) { level = "high"; }
+    else if (conf > 30) { level = "medium"; }
+    else { level = "low"; }
+
+    let levelColor;
+    if (level === "high") { levelColor = "var(--danger)"; }
+    else if (level === "medium") { levelColor = "var(--warn)"; }
+    else { levelColor = "var(--safe)"; }
+
     const a = ALGORITHMS.find(x => x.id === r.algorithm?.toLowerCase()) || {};
+    const isOk = r.status === "ok";
     return `
       <div class="algo-card">
         <div class="algo-card-header">
           <span class="algo-badge" style="color:${a.color||'var(--accent)'}; border-color:${a.color||'var(--accent)'}20; background:${a.color||'var(--accent)'}11">
             ${r.algorithm}
           </span>
-          <span class="algo-status ${r.status==='ok'?'ok':'error'}">${r.status==='ok'?'✓ OK':'⚠ HATA'}</span>
+          <span class="algo-status ${isOk ? 'ok' : 'error'}">${isOk ? '✓ OK' : '⚠ HATA'}</span>
         </div>
         <div class="conf-bar-bg">
           <div class="conf-bar-fill ${level}" style="width:${conf}%"></div>
         </div>
         <div class="algo-stats">
           <div class="stat">
-            <div class="stat-val" style="color:${level==='high'?'var(--danger)':level==='medium'?'var(--warn)':'var(--safe)'}">%${conf.toFixed(1)}</div>
+            <div class="stat-val" style="color:${levelColor}">%${conf.toFixed(1)}</div>
             <div class="stat-key">GÜVEN</div>
           </div>
           <div class="stat">
@@ -1188,7 +1202,7 @@ function buildTaskBoard() {
         <div class="task-card">
           <div class="task-card-title">${t.title}</div>
           <span class="task-tag" style="background:${t.color}18;color:${t.color};border:1px solid ${t.color}40">${t.tag}</span>
-          ${t.pts !== "—" ? `<div class="task-pts">${t.pts}</div>` : ""}
+          ${t.pts === "—" ? "" : `<div class="task-pts">${t.pts}</div>`}
         </div>`).join("")}
     </div>`).join("");
 }
@@ -1230,16 +1244,14 @@ function buildFsmPage() {
     ["Sistem Geneli",           "Doxygen/SonarQube/Graphviz entegrasyonu",   "2.0 saat"],
     ["Sistem Geneli",           "Kullanıcı kılavuzu yazımı",                 "2.0 saat"],
   ];
-  const total = effortData.reduce((s, r) => s + parseFloat(r[2]), 0);
-  document.getElementById("effort-table").innerHTML = `
-    <thead><tr><th>FSM GEÇİŞ</th><th>GÖREV</th><th>EMEK (SAAT)</th></tr></thead>
-    <tbody>
+  const total = effortData.reduce((s, r) => s + Number.parseFloat(r[2]), 0);
+  const tbody = document.querySelector("#effort-table tbody");
+  tbody.innerHTML = `
       ${effortData.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}
       <tr style="border-top:2px solid var(--accent)">
         <td colspan="2" class="effort-total">TOPLAM</td>
         <td class="effort-total">${total.toFixed(1)} saat</td>
-      </tr>
-    </tbody>`;
+    </tr>`;
 }
 
 // ============================================================

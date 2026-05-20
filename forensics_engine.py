@@ -291,7 +291,6 @@ class ForensicsEngine:
         """
         try:
             pil = Image.open(BytesIO(img_bytes)).convert("RGB")
-            fmt = Image.open(BytesIO(img_bytes)).format or ""
 
             # --- Orijinal JPEG kalitesini tahmin et ---
             orig_quality = self._estimate_jpeg_quality(img_bytes)
@@ -694,7 +693,6 @@ class ForensicsEngine:
 
             if saturation.std() > 1e-3:
                 sat_kurt = float(sstats.kurtosis(saturation, fisher=True))
-                sat_skew = float(sstats.skew(saturation))
 
                 # Empirical calibration for HSV saturation channel kurtosis:
                 # Stable Diffusion / Midjourney: sat_kurt typically -0.5 to 1.5
@@ -903,9 +901,6 @@ class ForensicsEngine:
             # Sinyal 1: Düz bölge oranı
             diff_h = np.abs(
                 gray[:, 1:].astype(np.int16) - gray[:, :-1].astype(np.int16)
-            )
-            diff_v = np.abs(
-                gray[1:, :].astype(np.int16) - gray[:-1, :].astype(np.int16)
             )
             flat_ratio = float((diff_h < 3).mean())
 

@@ -18,18 +18,13 @@ Run: pip install -r requirements.txt
 python app.py
 """
 
-import os
-import sys
-import base64
 import logging
 import numpy as np
 from io import BytesIO
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from PIL import Image
-from flask import send_from_directory
 
-# Import forensics engine
 from forensics_engine import ForensicsEngine
 
 # ---------------------------------------------------------------------------
@@ -45,7 +40,8 @@ logger = logging.getLogger(__name__)
 # Flask app
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
-CORS(app)
+# CORS: only allow requests from localhost (development)
+CORS(app, origins=["http://localhost:5050", "http://127.0.0.1:5050"])
 
 engine = ForensicsEngine()
 
@@ -73,15 +69,16 @@ def fsm_transition(current: str, next_state: str) -> str:
     """
     if next_state not in FSM_TRANSITIONS.get(current, []):
         raise ValueError(f"Invalid FSM transition: {current} -> {next_state}")
-    logger.info(f"FSM: {current} -> {next_state}")
+    logger.info("FSM: %s -> %s", current, next_state)
     return next_state
 
 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-@app.route("/")
+@app.route("/", methods=["GET"])
 def index():
+    """@brief Serve the main HTML interface."""
     return send_from_directory(".", "main.html")
 
 
@@ -135,15 +132,15 @@ def analyze():
     try:
         img_bytes = file.read()
         pil_raw = Image.open(BytesIO(img_bytes))
-        fmt = getattr(pil_raw, "format", "") or ""
-        is_gif = fmt.upper() == "GIF"
+        image_format = getattr(pil_raw, "format", "") or ""
+        is_gif = image_format.upper() == "GIF"
         is_animated_gif = is_gif and getattr(pil_raw, "n_frames", 1) > 1
         n_frames = getattr(pil_raw, "n_frames", 1) if is_gif else 1
         if is_gif:
             pil_raw.seek(0)
         pil_img = pil_raw.convert("RGB")
     except Exception as e:
-        logger.error(f"Image load failed: {e}")
+        logger.error("Image load failed: %s", e)
         return jsonify({"error": "Cannot read image file"}), 400
 
     # --- PREPROCESS state ---
@@ -152,18 +149,15 @@ def analyze():
 
     # --- ANALYZE state ---
     FSM_STATE = fsm_transition(FSM_STATE, "ANALYZE")
-    is_gif = locals().get("is_gif", False)
-    is_animated_gif = locals().get("is_animated_gif", False)
-    n_frames = locals().get("n_frames", 1)
     try:
         result = engine.run_full_analysis(img_np, img_bytes, selected_algos)
         if is_gif:
             result["file_format"] = "GIF"
             result["gif_animated"] = is_animated_gif
             result["gif_frames"] = n_frames
-    except Exception as e:
+    except Exception:
         logger.exception("Analysis failed")
-        return jsonify({"error": f"Analysis error: {str(e)}"}), 500
+        return jsonify({"error": "Analysis error"}), 500
 
     # --- REPORT state ---
     FSM_STATE = fsm_transition(FSM_STATE, "REPORT")
@@ -180,13 +174,13 @@ def list_algorithms():
     """
     algos = [
         {"id": "sift",  "name": "SIFT",  "full": "Scale-Invariant Feature Transform",
-         "description": "Kopyala-yapıştır manipülasyonlarını tespit eder. Döndürme ve ölçek değişimlerine karşı dayanıklıdır."},
+         "description": "Kopyala-yapıştır manipülasyonlarını tespit eder."},
         {"id": "surf",  "name": "SURF",  "full": "Speeded-Up Robust Features",
-         "description": "SIFT'in hızlandırılmış versiyonu. Doku manipülasyonlarında etkilidir."},
+         "description": "SIFT'in hızlandırılmış versiyonu."},
         {"id": "akaze", "name": "AKAZE", "full": "Accelerated KAZE",
-         "description": "Doğrusal olmayan difüzyon filtresi tabanlı. Yüksek doğruluk sağlar."},
+         "description": "Doğrusal olmayan difüzyon filtresi tabanlı."},
         {"id": "orb",   "name": "ORB",   "full": "Oriented FAST and Rotated BRIEF",
-         "description": "Hızlı ve açık kaynaklı. Gerçek zamanlı analiz için uygundur."},
+         "description": "Hızlı ve açık kaynaklı."},
     ]
     return jsonify(algos)
 
@@ -196,4 +190,5 @@ def list_algorithms():
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     logger.info("Starting Image Forensics Server on http://localhost:5050")
-    app.run(host="0.0.0.0", port=5050, debug=False)
+    # host="127.0.0.1" — only local access, not all interfaces
+    app.run(host="127.0.0.1", port=5050, debug=False)
