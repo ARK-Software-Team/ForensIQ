@@ -1,0 +1,78 @@
+# Doxyfile for ForensIQ - Image Forgery Detection System
+
+#---------------------------------------------------------------------------
+# Project Info
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "ForensIQ"
+PROJECT_NUMBER         = "1.0.0"
+PROJECT_BRIEF          = "Image Forgery Detection System"
+OUTPUT_DIRECTORY       = ./docs
+INPUT                  = app.py forensics_engine.py ai_detector.py
+RECURSIVE              = NO
+FILE_PATTERNS          = *.py
+
+#---------------------------------------------------------------------------
+# Build Options
+#---------------------------------------------------------------------------
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = YES
+GENERATE_XML           = NO
+
+#---------------------------------------------------------------------------
+# HTML Output
+#---------------------------------------------------------------------------
+HTML_OUTPUT            = html
+HTML_COLORSTYLE        = DARK
+
+#---------------------------------------------------------------------------
+# LaTeX / PDF Output
+#---------------------------------------------------------------------------
+LATEX_OUTPUT           = latex
+LATEX_CMD_NAME         = pdflatex
+COMPACT_LATEX          = YES
+PAPER_TYPE             = a4
+PDF_HYPERLINKS         = YES
+USE_PDFLATEX           = YES
+LATEX_BATCHMODE        = YES
+LATEX_EXTRA_PACKAGES   = inputenc
+LATEX_HEADER           =
+LATEX_FOOTER           =
+# Use UTF-8 encoding and skip non-ASCII in LaTeX output
+LATEX_SOURCE_CODE      = NO
+
+#---------------------------------------------------------------------------
+# Graphviz / Call Graphs
+#---------------------------------------------------------------------------
+HAVE_DOT               = YES
+DOT_PATH               = C:/Program Files (x86)/Graphviz/bin
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+CLASS_DIAGRAMS         = YES
+COLLABORATION_GRAPH    = YES
+UML_LOOK               = YES
+DOT_IMAGE_FORMAT       = png
+INTERACTIVE_SVG        = NO
+DOT_GRAPH_MAX_NODES    = 100
+MAX_DOT_GRAPH_DEPTH    = 3
+GENERATE_LEGEND        = YES
+
+#---------------------------------------------------------------------------
+# Source / Python
+#---------------------------------------------------------------------------
+OPTIMIZE_OUTPUT_JAVA   = NO
+EXTENSION_MAPPING      = py=Python
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+# Filter out non-ASCII characters that break LaTeX
+INPUT_ENCODING         = UTF-8
+DOXYFILE_ENCODING      = UTF-8
+
+#---------------------------------------------------------------------------
+# Warnings
+#---------------------------------------------------------------------------
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
