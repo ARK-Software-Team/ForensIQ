@@ -865,13 +865,20 @@ class ForensicsEngine:
         """
         details = []
 
-        # API sonucu varsa en üste koy
+        # Semantik analiz sonucu varsa en üste koy
         api_conf = raw.get("api_conf")
         if api_conf is not None:
+            method = raw.get("method", "")
+            if "CLIP" in method:
+                source_name = "CLIP Lokal Model"
+            elif "API" in method or "Anthropic" in method:
+                source_name = "Anthropic Vision API"
+            else:
+                source_name = method or "Semantik Analiz"
             details.append({
-                "name":  "Anthropic Vision API",
+                "name":  source_name,
                 "score": round(api_conf, 1),
-                "label": raw.get("reason", "API tabanlı görsel analiz")
+                "label": raw.get("reason", "Semantik görsel analiz")
             })
 
         # İstatistiksel sinyaller
