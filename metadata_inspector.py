@@ -86,6 +86,13 @@ EDITOR_PATTERNS = [
 ##                                        (cozunurluk artirma, gurultu temizleme)
 ##   algorithmicMedia                   : algoritmayla uretilmis ama AI degil (3B render)
 ##   digitalCapture                     : kamerayla cekilmis
+
+## Bulgu anahtarlarinda kullanilan kaynak onekleri
+## (SonarQube: ayni metin birden cok yerde yineleniyordu).
+KAYNAK_EXIF = "EXIF - "
+KAYNAK_PNG = "PNG - "
+ANAHTAR_XMP_CREATORTOOL = "XMP - xmp:CreatorTool"
+
 IPTC_SOURCE_TYPES = [
     ("compositewithtrainedalgorithmicmedia", "composite",
      "Kismen AI uretimi (kompozit)", True),
@@ -479,15 +486,15 @@ class MetadataInspector:
             editors    = _match_patterns(value, EDITOR_PATTERNS)
 
             if generators:
-                self._add_generators(report, generators, "EXIF - " + name, value,
+                self._add_generators(report, generators, KAYNAK_EXIF + name, value,
                                      "Dosya yapisinda AI uretici imzasi bulundu.")
             elif editors:
-                self._add_editors(report, editors, "EXIF - " + name, value)
+                self._add_editors(report, editors, KAYNAK_EXIF + name, value)
             elif name in ("Software", "ProcessingSoftware", "HostComputer"):
                 report["findings"].append({
                     "category": "exif",
                     "severity": "info",
-                    "key":      "EXIF - " + name,
+                    "key":      KAYNAK_EXIF + name,
                     "value":    value,
                     "note":     "Bilinen AI/retus imzasi degil.",
                 })
@@ -505,7 +512,7 @@ class MetadataInspector:
             editors    = _match_patterns(key + " " + value, EDITOR_PATTERNS)
 
             if generators:
-                self._add_generators(report, generators, "PNG - " + key, value,
+                self._add_generators(report, generators, KAYNAK_PNG + key, value,
                                      "PNG metin blogunda AI uretici imzasi bulundu.")
                 continue
 
@@ -514,7 +521,7 @@ class MetadataInspector:
                 report["findings"].append({
                     "category": "png_text",
                     "severity": "high",
-                    "key":      "PNG - " + key,
+                    "key":      KAYNAK_PNG + key,
                     "value":    value,
                     "note":     "Difuzyon modeli uretim parametreleri "
                                 "(prompt/seed/sampler/steps) gomulu.",
@@ -522,12 +529,12 @@ class MetadataInspector:
                 continue
 
             if editors:
-                self._add_editors(report, editors, "PNG - " + key, value)
+                self._add_editors(report, editors, KAYNAK_PNG + key, value)
             elif value:
                 report["findings"].append({
                     "category": "png_text",
                     "severity": "info",
-                    "key":      "PNG - " + key,
+                    "key":      KAYNAK_PNG + key,
                     "value":    value,
                     "note":     "Metin blogu mevcut, AI imzasi tespit edilmedi.",
                 })
@@ -637,15 +644,15 @@ class MetadataInspector:
             generators = _match_patterns(value, AI_GENERATOR_PATTERNS)
             editors    = _match_patterns(value, EDITOR_PATTERNS)
             if generators:
-                self._add_generators(report, generators, "XMP - xmp:CreatorTool", value,
+                self._add_generators(report, generators, ANAHTAR_XMP_CREATORTOOL, value,
                                      "XMP paketinde AI uretici imzasi bulundu.")
             elif editors:
-                self._add_editors(report, editors, "XMP - xmp:CreatorTool", value)
+                self._add_editors(report, editors, ANAHTAR_XMP_CREATORTOOL, value)
             elif value:
                 report["findings"].append({
                     "category": "xmp",
                     "severity": "info",
-                    "key":      "XMP - xmp:CreatorTool",
+                    "key":      ANAHTAR_XMP_CREATORTOOL,
                     "value":    value,
                     "note":     "Uretici arac bilgisi; bilinen AI imzasi degil.",
                 })
@@ -802,7 +809,7 @@ class MetadataInspector:
         has_block = any(report["blocks"].values()) or report["c2pa"]["present"]
         report["metadata_stripped"] = not has_block
 
-        severities = set(f["severity"] for f in report["findings"])
+        severities = {f["severity"] for f in report["findings"]}
 
         if report["generators"]:
             report["verdict"]       = "ai_signature"

@@ -34,7 +34,8 @@ def _fsm_yukle():
 
     tablo = re.search(r"FSM_TRANSITIONS = \{.*?\n\}", kaynak, re.S)
     fonk  = re.search(r"def fsm_transition\(.*?(?=\n@app\.|\ndef |\Z)", kaynak, re.S)
-    assert tablo and fonk, "app.py içinde FSM tanımı bulunamadı"
+    assert tablo, "app.py içinde FSM_TRANSITIONS tablosu bulunamadı"
+    assert fonk, "app.py içinde fsm_transition() fonksiyonu bulunamadı"
 
     # Fonksiyon log yazıyor; ad alanına sessiz bir logger koyuyoruz.
     import logging

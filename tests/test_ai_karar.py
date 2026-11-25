@@ -59,7 +59,8 @@ def test_kesin_ai_etiketi_skoru_yukseltir(motor):
     sonuc, artis = motor._apply_metadata_boost(
         _ai_sonuc(20.0), _meta("ai_signature", generators=["Midjourney"]))
 
-    assert artis is not None and artis["applied"] is True
+    assert artis is not None, "metadata artışı raporlanmalı"
+    assert artis["applied"] is True
     assert sonuc["confidence"] >= 75.0, "ai_signature için taban %75"
     assert sonuc["generated"] is True
     assert "Midjourney" in artis["generators"]

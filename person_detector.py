@@ -59,6 +59,9 @@ MIN_BOX_AREA_RATIO = 0.0015
 ## YuNet yüz tespiti için en düşük güven skoru.
 FACE_SCORE_THRESHOLD = 0.60
 
+## Model yüklenmemişken rapora yazılan metin.
+MODEL_YUKLU_DEGIL = "yüklü değil"
+
 ## Bir yüzün "şu gövdenin yüzü" sayılması için gereken örtüşme oranı.
 FACE_IN_BODY_RATIO = 0.60
 
@@ -447,8 +450,8 @@ class PersonDetector:
                     "face_score":   FACE_SCORE_THRESHOLD,
                 },
                 "models": {
-                    "body": self.body_name or "yüklü değil",
-                    "face": self.face_name or "yüklü değil",
+                    "body": self.body_name or MODEL_YUKLU_DEGIL,
+                    "face": self.face_name or MODEL_YUKLU_DEGIL,
                 },
                 "summary": self._build_summary(
                     person_count, len(bodies), len(faces), len(extra)
@@ -505,8 +508,8 @@ class PersonDetector:
             "faces":            [],
             "thresholds":       {},
             "models": {
-                "body": self.body_name or "yüklü değil",
-                "face": self.face_name or "yüklü değil",
+                "body": self.body_name or MODEL_YUKLU_DEGIL,
+                "face": self.face_name or MODEL_YUKLU_DEGIL,
             },
             "summary": reason,
         }
@@ -518,8 +521,8 @@ class PersonDetector:
         """
         return {
             "available": self.available,
-            "body":      self.body_name or "yüklü değil",
-            "face":      self.face_name or "yüklü değil",
+            "body":      self.body_name or MODEL_YUKLU_DEGIL,
+            "face":      self.face_name or MODEL_YUKLU_DEGIL,
             "model_dirs": {
                 "person": str(self.person_model_dir),
                 "face":   str(self.face_model_dir),

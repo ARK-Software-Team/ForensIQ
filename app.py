@@ -78,6 +78,10 @@ from forensics_engine import ForensicsEngine
 # ---------------------------------------------------------------------------
 # Flask app
 # ---------------------------------------------------------------------------
+## Tekrarlanan istemci hata mesajları (SonarQube: yinelenen metin sabiti).
+HATA_DOSYA_YOK = "No file provided"
+HATA_GORUNTU_OKUNAMADI = "Cannot read image file"
+
 app = Flask(__name__)
 # CORS: only allow requests from localhost (development)
 CORS(app, origins=["http://localhost:5050", "http://127.0.0.1:5050"])
@@ -179,7 +183,7 @@ def analyze():
         return jsonify({"error": str(e)}), 400
 
     if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+        return jsonify({"error": HATA_DOSYA_YOK}), 400
 
     file = request.files["file"]
     algorithms_param = request.form.get("algorithms", "sift,surf,akaze,orb")
@@ -197,7 +201,7 @@ def analyze():
         pil_img = pil_raw.convert("RGB")
     except Exception:
         logger.exception("Image load failed")
-        return jsonify({"error": "Cannot read image file"}), 400
+        return jsonify({"error": HATA_GORUNTU_OKUNAMADI}), 400
 
     # --- PREPROCESS state ---
     FSM_STATE = fsm_transition(FSM_STATE, "PREPROCESS")
@@ -237,13 +241,13 @@ def metadata_only():
     @return JSON metadata raporu (verdict, confidence, findings, camera_evidence).
     """
     if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+        return jsonify({"error": HATA_DOSYA_YOK}), 400
 
     try:
         img_bytes = request.files["file"].read()
     except Exception:
         logger.exception("Metadata: dosya okunamadı")
-        return jsonify({"error": "Cannot read image file"}), 400
+        return jsonify({"error": HATA_GORUNTU_OKUNAMADI}), 400
 
     if not img_bytes:
         return jsonify({"error": "Empty file"}), 400
@@ -269,7 +273,7 @@ def _istekten_goruntu_oku(islem_adi: str):
           aynı doğrulama bloğunun tekrarını önler (kod tekrarı giderildi).
     """
     if "file" not in request.files:
-        return None, (jsonify({"error": "No file provided"}), 400)
+        return None, (jsonify({"error": HATA_DOSYA_YOK}), 400)
 
     try:
         img_bytes = request.files["file"].read()
@@ -279,7 +283,7 @@ def _istekten_goruntu_oku(islem_adi: str):
         return img_np, None
     except Exception:
         logger.exception("%s: dosya okunamadı", islem_adi)
-        return None, (jsonify({"error": "Cannot read image file"}), 400)
+        return None, (jsonify({"error": HATA_GORUNTU_OKUNAMADI}), 400)
 
 
 @app.route("/api/persons", methods=["POST"])

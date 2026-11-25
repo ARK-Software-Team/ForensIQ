@@ -55,6 +55,9 @@ MODELS_DIR = _BASE_DIR / "models"
 AI_TARGET_DIR = MODELS_DIR / "ai_image_detector"
 
 ## HuggingFace'ten indirilecek dosya kalıpları (eğitim artıkları hariç).
+## Birden çok model aynı lisansı taşıyor (SonarQube: yinelenen metin sabiti).
+LISANS_APACHE2 = "Apache-2.0"
+
 AI_ALLOW_PATTERNS = [
     "config.json",
     "preprocessor_config.json",
@@ -77,7 +80,7 @@ AI_VARIANTS = {
         "repo_id":      "haywoodsloan/ai-image-detector-deploy",
         "display_name": "SwinV2 AI Dedektörü",
         "architecture": "Swin Transformer V2 (denetimli eğitilmiş)",
-        "license":      "Apache-2.0",
+        "license":      LISANS_APACHE2,
         "size_mb":      745,
         "note":         "Kendi test setimizde en iyi sonuç (11/14 tek başına). "
                         "Daha büyük, CPU'da ~0,8 sn.",
@@ -87,7 +90,7 @@ AI_VARIANTS = {
         "repo_id":      "dima806/ai_vs_real_image_detection",
         "display_name": "ViT AI Dedektörü",
         "architecture": "Vision Transformer (denetimli eğitilmiş)",
-        "license":      "Apache-2.0",
+        "license":      LISANS_APACHE2,
         "size_mb":      327,
         "note":         "CLIP ile aynı mimari aileden — algoritma çeşitliliği daha az.",
         "default":      False,
@@ -168,7 +171,7 @@ AGE_VARIANTS = {
         "repo_id":      "prithivMLmods/facial-age-detection",
         "display_name": "SigLIP Yas Tahmini",
         "architecture": "SigLIP (denetimli egitilmis)",
-        "license":      "Apache-2.0",
+        "license":      LISANS_APACHE2,
         "size_mb":      354,
         "note":         "Apache-2.0 alternatifi. Kendi setimizde ortalama hata "
                         "~6,8 yil; en alt sinifi 1-10 oldugu icin bebek yasini "

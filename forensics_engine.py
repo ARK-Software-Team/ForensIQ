@@ -94,6 +94,16 @@ EDIT_EVIDENCE_VERDICTS = {
                          "(çözünürlük / gürültü)",
 }
 
+## Künyede tanınan düzenleme eylemleri.
+EDIT_EVIDENCE_ACTIONS = ("edited", "filtered", "placed", "cropped", "resized")
+
+## Düzenleme kanıtında raporlanan en fazla yazılım / eylem sayısı.
+EDIT_MAX_SOFTWARE = 3
+EDIT_MAX_ACTIONS = 4
+
+## Model yüklenmemişken arayüze ve raporlara yazılan metin.
+MODEL_YUKLU_DEGIL = "yüklü değil"
+
 ## Metadata artışının çıkabileceği en yüksek skor.
 METADATA_BOOST_CAP = 95.0
 
@@ -459,7 +469,7 @@ class ForensicsEngine:
                     if self._age_estimator is not None else None)
         channels.append({
             "name":         "Yaş Tahmini",
-            "architecture": (age_info or {}).get("architecture") or "yüklü değil",
+            "architecture": (age_info or {}).get("architecture") or MODEL_YUKLU_DEGIL,
             "type":         "yaş tahmini (US-6)",
             "loaded":       bool(age_info and age_info["available"]),
         })
@@ -476,17 +486,17 @@ class ForensicsEngine:
                        if self._person_detector is not None else None)
         channels.append({
             "name":         "Kişi Sayımı (gövde)",
-            "architecture": (person_info or {}).get("body", "yüklü değil"),
+            "architecture": (person_info or {}).get("body", MODEL_YUKLU_DEGIL),
             "type":         "nesne tespiti (US-5)",
             "loaded":       bool(person_info and person_info["available"]
-                                 and person_info["body"] != "yüklü değil"),
+                                 and person_info["body"] != MODEL_YUKLU_DEGIL),
         })
         channels.append({
             "name":         "Yüz Tespiti",
-            "architecture": (person_info or {}).get("face", "yüklü değil"),
+            "architecture": (person_info or {}).get("face", MODEL_YUKLU_DEGIL),
             "type":         "yüz tespiti (US-5 / US-6)",
             "loaded":       bool(person_info and person_info["available"]
-                                 and person_info["face"] != "yüklü değil"),
+                                 and person_info["face"] != MODEL_YUKLU_DEGIL),
         })
 
         return {"model_count": model_count, "channels": channels}
@@ -517,7 +527,7 @@ class ForensicsEngine:
         verdict = metadata_report.get("verdict", "")
         c2pa    = metadata_report.get("c2pa", {}) or {}
         actions = [a for a in (c2pa.get("actions") or [])
-                   if a in ("edited", "filtered", "placed", "cropped", "resized")]
+                   if a in EDIT_EVIDENCE_ACTIONS][:EDIT_MAX_ACTIONS]
 
         label = EDIT_EVIDENCE_VERDICTS.get(verdict)
         if label is None and actions:
@@ -525,28 +535,28 @@ class ForensicsEngine:
         if label is None:
             return bos
 
-        # Künye bilgisi güvenilmeyen bir dosyadan gelir: liste olduğu
-        # doğrulanmadan dilimlenirse bozuk bir manifest TypeError üretebilir.
-        # (SonarQube S6466 burayı "IndexError" diye işaretliyor; dilimleme
-        #  IndexError üretmez ama tür denetimi gerçekten eksikti.)
+        # Künye bilgisi güvenilmeyen bir dosyadan gelir; liste olduğu
+        # doğrulanmadan dilimlenirse bozuk bir manifest TypeError üretir.
+        # Dilimleme `actions` gibi doğrudan liste kavrama içinde yapılır:
+        # böylece listenin türü tek ifadeden okunur ve statik çözümleyici
+        # (SonarQube S6466) dilimi hatalı biçimde "IndexError" saymaz.
         ham_yazilim = c2pa.get("software")
-        if isinstance(ham_yazilim, (list, tuple)):
-            software = [str(s) for s in ham_yazilim if str(s).strip()]
-        else:
-            software = []
+        if not isinstance(ham_yazilim, (list, tuple)):
+            ham_yazilim = ()
+        software = [str(s).strip() for s in ham_yazilim if str(s).strip()][:EDIT_MAX_SOFTWARE]
 
         detay = []
         if software:
-            detay.append("Kayıtlı yazılım: %s." % ", ".join(software[:3]))
+            detay.append("Kayıtlı yazılım: %s." % ", ".join(software))
         if actions:
-            detay.append("Eylemler: %s." % ", ".join(actions[:4]))
+            detay.append("Eylemler: %s." % ", ".join(actions))
 
         return {
             "present":  True,
             "label":    label,
             "detail":   " ".join(detay),
-            "software": software[:3],
-            "actions":  actions[:4],
+            "software": software,
+            "actions":  actions,
             "source":   "C2PA / Content Credentials",
         }
 
@@ -661,7 +671,7 @@ class ForensicsEngine:
             logger.warning("Animasyon kareleri okunamadı: %s", exc)
             return []
 
-    def _analyze_frames(self, frames: list) -> dict:
+    def _analyze_frames(self, frames: list) -> dict | None:
         """
         @brief Birden çok karede AI tespiti çalıştırıp sonucu birleştirir.
 

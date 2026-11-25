@@ -125,7 +125,8 @@ def test_kontrol_karakterleri_temizlenir():
     from metadata_inspector import _clean
     kirli = "Midjourney\x00\x07 v6\n\n   sürüm"
     temiz = _clean(kirli)
-    assert "\x00" not in temiz and "\x07" not in temiz
+    assert "\x00" not in temiz, "NUL baytı temizlenmeli"
+    assert "\x07" not in temiz, "Denetim karakteri temizlenmeli"
     assert "  " not in temiz, "Ardışık boşluklar sadeleştirilmeli"
 
     uzun = _clean("A" * 500, max_len=50)

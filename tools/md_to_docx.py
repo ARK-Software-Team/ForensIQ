@@ -792,7 +792,7 @@ def _blok_baslangici_mi(satir: str) -> bool:
     k = satir.strip()
     if not k:
         return True
-    if k.startswith("<!--") or k.startswith("```") or k.startswith(">"):
+    if k.startswith(("<!--", "```", ">")):
         return True
     if re.match(r"^#{1,6}\s+", k):
         return True
