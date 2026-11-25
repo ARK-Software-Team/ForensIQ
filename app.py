@@ -257,6 +257,31 @@ def metadata_only():
     return jsonify(report)
 
 
+def _istekten_goruntu_oku(islem_adi: str):
+    """
+    @brief İstekten görüntüyü okur ve doğrular (üç hafif endpoint ortak kullanır).
+
+    @param islem_adi Log'da görünecek işlem adı.
+    @return `(img_np, hata_yaniti)` — başarıdaysa `(dizi, None)`,
+            hatada `(None, (jsonify(...), kod))`.
+
+    @note Bu yardımcı, `/api/persons`, `/api/medium` ve `/api/ages` uçlarındaki
+          aynı doğrulama bloğunun tekrarını önler (kod tekrarı giderildi).
+    """
+    if "file" not in request.files:
+        return None, (jsonify({"error": "No file provided"}), 400)
+
+    try:
+        img_bytes = request.files["file"].read()
+        if not img_bytes:
+            return None, (jsonify({"error": "Empty file"}), 400)
+        img_np = np.array(Image.open(BytesIO(img_bytes)).convert("RGB"))
+        return img_np, None
+    except Exception:
+        logger.exception("%s: dosya okunamadı", islem_adi)
+        return None, (jsonify({"error": "Cannot read image file"}), 400)
+
+
 @app.route("/api/persons", methods=["POST"])
 def persons_only():
     """
@@ -271,18 +296,9 @@ def persons_only():
 
     @return JSON kişi raporu (person_count, body_count, face_count, persons, faces).
     """
-    if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
-
-    try:
-        img_bytes = request.files["file"].read()
-        if not img_bytes:
-            return jsonify({"error": "Empty file"}), 400
-        pil    = Image.open(BytesIO(img_bytes)).convert("RGB")
-        img_np = np.array(pil)
-    except Exception:
-        logger.exception("Kişi tespiti: dosya okunamadı")
-        return jsonify({"error": "Cannot read image file"}), 400
+    img_np, hata = _istekten_goruntu_oku("Kişi tespiti")
+    if hata is not None:
+        return hata
 
     try:
         report = engine.detect_persons(img_np)
@@ -307,17 +323,9 @@ def ages_only():
 
     @return JSON yaş raporu (count, ages[], summary, model).
     """
-    if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
-
-    try:
-        img_bytes = request.files["file"].read()
-        if not img_bytes:
-            return jsonify({"error": "Empty file"}), 400
-        img_np = np.array(Image.open(BytesIO(img_bytes)).convert("RGB"))
-    except Exception:
-        logger.exception("Yaş tahmini: dosya okunamadı")
-        return jsonify({"error": "Cannot read image file"}), 400
+    img_np, hata = _istekten_goruntu_oku("Yaş tahmini")
+    if hata is not None:
+        return hata
 
     try:
         return jsonify(engine.estimate_ages(img_np))
@@ -341,17 +349,9 @@ def medium_only():
 
     @return JSON medium raporu (medium, confidence, scores, caution).
     """
-    if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
-
-    try:
-        img_bytes = request.files["file"].read()
-        if not img_bytes:
-            return jsonify({"error": "Empty file"}), 400
-        img_np = np.array(Image.open(BytesIO(img_bytes)).convert("RGB"))
-    except Exception:
-        logger.exception("Medium: dosya okunamadı")
-        return jsonify({"error": "Cannot read image file"}), 400
+    img_np, hata = _istekten_goruntu_oku("Medium")
+    if hata is not None:
+        return hata
 
     try:
         return jsonify(engine.classify_medium(img_np))

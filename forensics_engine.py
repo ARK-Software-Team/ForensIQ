@@ -713,33 +713,33 @@ class ForensicsEngine:
               (Ek Madde-1 — çökme riski sıfırlanır).
         """
         if self._medium_classifier is None:
-            return {
-                "available":         False,
-                "medium":            "unknown",
-                "medium_label":      "Belirlenemedi",
-                "confidence":        0.0,
-                "scores":            {},
-                "photographic":      True,
-                "confident":         False,
-                "blocks_ai_verdict": False,
-                "caution":           "",
-            }
+            return self._bos_medium_raporu()
 
         try:
             return self._medium_classifier.classify(img_np)
         except Exception:
             logger.exception("Medium sınıflandırması başarısız")
-            return {
-                "available":         False,
-                "medium":            "unknown",
-                "medium_label":      "Belirlenemedi",
-                "confidence":        0.0,
-                "scores":            {},
-                "photographic":      True,
-                "confident":         False,
-                "blocks_ai_verdict": False,
-                "caution":           "",
-            }
+            return self._bos_medium_raporu()
+
+    @staticmethod
+    def _bos_medium_raporu() -> dict:
+        """
+        @brief Medium sınıflandırması yapılamadığında dönen güvenli rapor.
+        @return Kararı etkilemeyen boş rapor.
+        @note Tek yerde tanımlıdır; iki ayrı yerde kopyalanmış hâli
+              birleştirildi (kod tekrarı giderildi).
+        """
+        return {
+            "available":         False,
+            "medium":            "unknown",
+            "medium_label":      "Belirlenemedi",
+            "confidence":        0.0,
+            "scores":            {},
+            "photographic":      True,
+            "confident":         False,
+            "blocks_ai_verdict": False,
+            "caution":           "",
+        }
 
     def detect_persons(self, img_np: np.ndarray) -> dict:
         """

@@ -1,2 +1,15 @@
+# Geliştirme ve teslim araçları (uygulamanın çalışması için gerekmez)
+
+# White box testler ve HTML raporu
 pytest
+pytest-html
+
+# Markdown -> Word dönüştürücü (tools/md_to_docx.py)
 python-docx
+
+# Belge biçimini ÖLÇMEK için (örnek PDF'lerden yazı tipi/punto/aralık okuma)
+pymupdf
+
+# Yalnızca Windows: eski .doc örneklerini Word ile .docx/PDF'e çevirip
+# ölçmek ve üretilen belgeleri PDF'e aktarıp doğrulamak için.
+pywin32; sys_platform == "win32"
