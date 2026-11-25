@@ -33,12 +33,13 @@
 @version 1.0.0
 """
 
-import json
 import logging
 import re
 import numpy as np
 from pathlib import Path
 from PIL import Image
+
+from model_karti import kunye_oku
 
 logger = logging.getLogger(__name__)
 
@@ -143,17 +144,13 @@ class AgeEstimator:
         """
         @brief İndirme script'inin yazdığı `model_card.json` künyesini okur.
         @return Künye sözlüğü; dosya yoksa boş sözlük.
+
+        @details Okuma ve **metin temizliği** `model_karti.kunye_oku()`
+                 içinde yapılır: künye depo dışından indirildiği için
+                 satır sonu taşıyan bir değer günlükte sahte kayıt
+                 üretebilirdi (CWE-117).
         """
-        yol = self.model_dir / "model_card.json"
-        if not yol.exists():
-            return {}
-        try:
-            with open(yol, "r", encoding="utf-8") as fh:
-                veri = json.load(fh)
-            return veri if isinstance(veri, dict) else {}
-        except Exception as exc:
-            logger.warning("Yaş modeli künyesi okunamadı: %s", exc)
-            return {}
+        return kunye_oku(self.model_dir, "Yaş modeli künyesi")
 
     def _load(self) -> None:
         """

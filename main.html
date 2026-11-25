@@ -207,6 +207,12 @@ aside {
 .drop-zone input[type=file] {
   position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2;
 }
+/* Ekran okuyucular için görünür, gözle görünmeyen etiket.
+   WCAG 2.1 A: her form alanının erişilebilir bir adı olmalıdır. */
+.gorsel-gizli {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
 .drop-icon { font-size: var(--fs-display); margin-bottom: 10px; display: block; }
 .drop-zone h3 { font-size: var(--fs-lg); font-weight: 600; margin-bottom: 4px; }
 .drop-zone p { font-size: var(--fs-sm); color: var(--muted); }
@@ -1002,6 +1008,7 @@ aside {
     <div>
       <div class="section-label">Görüntü Yükle</div>
       <div class="drop-zone" id="drop-zone">
+        <label class="gorsel-gizli" for="file-input">Analiz edilecek görüntü dosyası</label>
         <input type="file" id="file-input" accept="image/*,.gif" />
         <span class="drop-icon">🖼️</span>
         <h3>Dosya sürükle & bırak</h3>

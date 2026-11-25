@@ -23,11 +23,12 @@
 @version 1.0.0
 """
 
-import json
 import logging
 import numpy as np
 from pathlib import Path
 from PIL import Image
+
+from model_karti import kunye_oku
 
 logger = logging.getLogger(__name__)
 
@@ -135,17 +136,13 @@ class DeepAIDetector:
         """
         @brief İndirme script'inin yazdığı `model_card.json` dosyasını okur.
         @return Kart sözlüğü; dosya yoksa boş sözlük.
+
+        @details Okuma ve **metin temizliği** `model_karti.kunye_oku()`
+                 içinde yapılır: künye depo dışından indirildiği için
+                 satır sonu taşıyan bir değer günlükte sahte kayıt
+                 üretebilirdi (CWE-117).
         """
-        card_path = self.model_dir / "model_card.json"
-        if not card_path.exists():
-            return {}
-        try:
-            with open(card_path, "r", encoding="utf-8") as fh:
-                data = json.load(fh)
-            return data if isinstance(data, dict) else {}
-        except Exception as exc:
-            logger.warning("model_card.json okunamadı: %s", exc)
-            return {}
+        return kunye_oku(self.model_dir, "model_card.json")
 
     def _load(self) -> None:
         """

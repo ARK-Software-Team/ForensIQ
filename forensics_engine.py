@@ -525,7 +525,16 @@ class ForensicsEngine:
         if label is None:
             return bos
 
-        software = c2pa.get("software") or []
+        # Künye bilgisi güvenilmeyen bir dosyadan gelir: liste olduğu
+        # doğrulanmadan dilimlenirse bozuk bir manifest TypeError üretebilir.
+        # (SonarQube S6466 burayı "IndexError" diye işaretliyor; dilimleme
+        #  IndexError üretmez ama tür denetimi gerçekten eksikti.)
+        ham_yazilim = c2pa.get("software")
+        if isinstance(ham_yazilim, (list, tuple)):
+            software = [str(s) for s in ham_yazilim if str(s).strip()]
+        else:
+            software = []
+
         detay = []
         if software:
             detay.append("Kayıtlı yazılım: %s." % ", ".join(software[:3]))

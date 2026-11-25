@@ -511,10 +511,10 @@ class DocxYazici:
             pf.space_before = Pt(k["ust_bosluk"] if sira == 0 else 0)
             pf.space_after = Pt(k["satir_sonrasi"])
             pf.line_spacing = 1.0
-            baslik = re.match(r"^(#{1,6})\s+(.*)$", metin)
+            baslik = re.match(r"^(#{1,6})\s+(\S.*)?$", metin)
             if baslik:
                 punto = k["baslik_punto"] if len(baslik.group(1)) == 1 else k["diger_punto"]
-                self.satir_ici(paragraf, baslik.group(2).replace("**", ""),
+                self.satir_ici(paragraf, (baslik.group(2) or "").replace("**", ""),
                                punto=punto, kalin=True)
             else:
                 self.satir_ici(paragraf, metin, punto=k["diger_punto"], kalin=True)
@@ -948,9 +948,9 @@ def md_to_docx(md_yolu: Path, docx_yolu: Path = None, stil: str = "std",
             continue
 
         # --- Başlık ---
-        baslik = re.match(r"^(#{1,6})\s+(.*)$", kirpik)
+        baslik = re.match(r"^(#{1,6})\s+(\S.*)?$", kirpik)
         if baslik:
-            yazici.baslik(len(baslik.group(1)), baslik.group(2).strip())
+            yazici.baslik(len(baslik.group(1)), (baslik.group(2) or "").strip())
             i += 1
             continue
 
@@ -974,9 +974,9 @@ def md_to_docx(md_yolu: Path, docx_yolu: Path = None, stil: str = "std",
             continue
 
         # --- Madde listesi ---
-        madde = re.match(r"^\s*[-*]\s+(.*)$", satir)
+        madde = re.match(r"^\s*[-*]\s+(\S.*)?$", satir)
         if madde:
-            metin = madde.group(1).strip()
+            metin = (madde.group(1) or "").strip()
             i += 1
             while i < len(satirlar) and not _blok_baslangici_mi(satirlar[i]):
                 metin += " " + satirlar[i].strip()
@@ -985,9 +985,9 @@ def md_to_docx(md_yolu: Path, docx_yolu: Path = None, stil: str = "std",
             continue
 
         # --- Numaralı liste ---
-        numarali = re.match(r"^\s*\d+[.)]\s+(.*)$", satir)
+        numarali = re.match(r"^\s*\d+[.)]\s+(\S.*)?$", satir)
         if numarali:
-            metin = numarali.group(1).strip()
+            metin = (numarali.group(1) or "").strip()
             i += 1
             while i < len(satirlar) and not _blok_baslangici_mi(satirlar[i]):
                 metin += " " + satirlar[i].strip()
