@@ -23,8 +23,60 @@
   --safe:      #a3ff47;
   --warn:      #ffcc00;
   --ai:        #c77dff;
+  /* ---------------------------------------------------------------
+     TİPOGRAFİ SİSTEMİ
+     İki yazı tipi, sekiz boyut. Her birinin tek bir kullanım yeri var;
+     bunların dışında serbest font-size kullanılmaz.
+
+     YAZI TİPLERİ
+       --sans (Syne)       : başlıklar, etiketler, okunan her metin
+       --mono (Space Mono) : sayılar, skorlar, teknik değerler, dosya adları,
+                             kod ve durum kodları — hizalanması gereken her şey
+
+     BOYUTLAR (taban 16px)
+       --fs-xs      12px  çip, rozet, dipnot, tablo etiketi   (EN KÜÇÜK SINIR)
+       --fs-sm      13px  ikincil metin, açıklama satırı
+       --fs-body    15px  ana okuma metni, paragraf, liste
+       --fs-lg      17px  vurgulu metin, kart başlığı
+       --fs-h2      20px  panel / bölüm başlığı
+       --fs-h1      24px  sayfa başlığı, logo, ana karar etiketi
+       --fs-metric  32px  tek başına duran büyük sayı
+       --fs-display 40px  ana karar metni ve büyük ikonlar
+
+     KURAL: 12px'in altına inilmez. Daha küçük görünmesi gereken bir şey
+     varsa boyut değil, renk (--muted) veya harf aralığı kullanılır.
+     --------------------------------------------------------------- */
   --mono:      'Space Mono', monospace;
   --sans:      'Syne', sans-serif;
+
+  --fs-xs:      0.75rem;
+  --fs-sm:      0.8125rem;
+  --fs-body:    0.9375rem;
+  --fs-lg:      1.0625rem;
+  --fs-h2:      1.25rem;
+  --fs-h1:      1.5rem;
+  --fs-metric:  2rem;
+  --fs-display: 2.5rem;
+
+  --lh-tight:   1.15;
+  --lh-normal:  1.45;
+  --lh-relaxed: 1.65;
+
+  /* ---------------------------------------------------------------
+     BOŞLUK SİSTEMİ
+     Tipografi gibi boşluk da serbest değer almaz; beş adımdan gelir.
+       --space-1   6px   satır/çip arası, en sıkı
+       --space-2  10px   başlık ile altındaki kutu arası
+       --space-3  16px   kutu içi bölümler arası
+       --space-4  24px   KUTULAR ARASI — tüm panellerde aynı
+       --space-5  36px   sayfa bölümleri arası
+     Kural: iki panel arasındaki mesafe her yerde --space-4'tür.
+     --------------------------------------------------------------- */
+  --space-1:  6px;
+  --space-2: 10px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 36px;
   --radius:    6px;
   --glow:      0 0 20px rgba(0,229,255,0.18);
 }
@@ -35,6 +87,9 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
+  /* Ölçeğin dışında kalan her metin buradan miras alır */
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -67,7 +122,7 @@ header {
 }
 .logo {
   font-family: var(--mono);
-  font-size: 1.15rem;
+  font-size: var(--fs-h2);
   font-weight: 700;
   letter-spacing: .08em;
   display: flex; align-items: center; gap: 10px;
@@ -75,7 +130,7 @@ header {
 .logo .bracket { color: var(--accent); }
 .logo .name { color: var(--text); }
 .logo .tag {
-  font-size: .6rem;
+  font-size: var(--fs-xs);
   background: var(--accent);
   color: var(--bg);
   padding: 2px 6px;
@@ -86,7 +141,7 @@ header {
 .nav-pills { display: flex; gap: 8px; }
 .pill {
   font-family: var(--mono);
-  font-size: .7rem;
+  font-size: var(--fs-sm);
   letter-spacing: .1em;
   padding: 5px 12px;
   border-radius: 20px;
@@ -119,12 +174,20 @@ aside {
 
 .section-label {
   font-family: var(--mono);
-  font-size: .65rem;
+  font-size: var(--fs-sm);
   letter-spacing: .2em;
   color: var(--muted);
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
+
+/* Sonuç sütunu: panel aralığı tek yerden, her panelde aynı.
+   Paneller kendi margin'ini TAŞIMAZ — aralık yalnız buradan gelir. */
+#results {
+  gap: var(--space-4);
+  align-content: start;
+}
+#results > * { margin: 0; }
 
 /* Drop Zone */
 .drop-zone {
@@ -144,9 +207,9 @@ aside {
 .drop-zone input[type=file] {
   position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2;
 }
-.drop-icon { font-size: 2.2rem; margin-bottom: 10px; display: block; }
-.drop-zone h3 { font-size: .9rem; font-weight: 600; margin-bottom: 4px; }
-.drop-zone p { font-size: .72rem; color: var(--muted); }
+.drop-icon { font-size: var(--fs-display); margin-bottom: 10px; display: block; }
+.drop-zone h3 { font-size: var(--fs-lg); font-weight: 600; margin-bottom: 4px; }
+.drop-zone p { font-size: var(--fs-sm); color: var(--muted); }
 .drop-zone.has-file { border-color: var(--accent3); border-style: solid; }
 .drop-zone.has-file .drop-icon { filter: grayscale(0); }
 
@@ -182,7 +245,7 @@ aside {
   border-radius: 3px;
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: .7rem;
+  font-size: var(--fs-sm);
   transition: all .2s;
 }
 .algo-item.selected .algo-check {
@@ -190,8 +253,8 @@ aside {
   border-color: var(--accent);
   color: var(--bg);
 }
-.algo-name { font-family: var(--mono); font-size: .8rem; font-weight: 700; }
-.algo-desc { font-size: .65rem; color: var(--muted); margin-top: 1px; line-height: 1.3; }
+.algo-name { font-family: var(--mono); font-size: var(--fs-body); font-weight: 700; }
+.algo-desc { font-size: var(--fs-sm); color: var(--muted); margin-top: 1px; line-height: 1.3; }
 
 /* Analyze button */
 .btn-analyze {
@@ -202,7 +265,7 @@ aside {
   border: none;
   border-radius: var(--radius);
   font-family: var(--mono);
-  font-size: .85rem;
+  font-size: var(--fs-body);
   font-weight: 700;
   letter-spacing: .12em;
   cursor: pointer;
@@ -238,7 +301,7 @@ aside {
   border-radius: var(--radius);
   padding: 10px 12px;
   font-family: var(--mono);
-  font-size: .65rem;
+  font-size: var(--fs-sm);
 }
 .fsm-title { color: var(--muted); letter-spacing: .15em; margin-bottom: 8px; }
 .fsm-states { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -260,7 +323,7 @@ aside {
   color: var(--accent3);
   background: rgba(163,255,71,.06);
 }
-.fsm-arrow { color: var(--muted); font-size: .7rem; }
+.fsm-arrow { color: var(--muted); font-size: var(--fs-sm); }
 
 /* ===== CONTENT AREA ===== */
 .content {
@@ -282,9 +345,9 @@ aside {
   color: var(--muted);
   text-align: center;
 }
-.empty-state .big-icon { font-size: 4rem; opacity: .3; }
-.empty-state h2 { font-size: 1.2rem; font-weight: 600; opacity: .5; }
-.empty-state p { font-size: .8rem; opacity: .4; max-width: 280px; line-height: 1.6; }
+.empty-state .big-icon { font-size: var(--fs-display); opacity: .3; }
+.empty-state h2 { font-size: var(--fs-h2); font-weight: 600; opacity: .5; }
+.empty-state p { font-size: var(--fs-body); opacity: .4; max-width: 280px; line-height: 1.6; }
 
 /* ===== VERDICT BANNER ===== */
 .vai {
@@ -308,11 +371,11 @@ aside {
   border: 1px solid rgba(163,255,71,.35);
 }
 .verdict-left { display: flex; align-items: center; gap: 16px; }
-.verdict-icon { font-size: 2.5rem; }
-.verdict-title { font-size: 1.5rem; font-weight: 800; letter-spacing: .02em; }
+.verdict-icon { font-size: var(--fs-display); }
+.verdict-title { font-size: var(--fs-h1); font-weight: 800; letter-spacing: .02em; }
 .verdict-banner.tampered .verdict-title { color: var(--danger); }
 .verdict-banner.clean .verdict-title { color: var(--safe); }
-.verdict-sub { font-size: .8rem; color: var(--muted); white-space: pre-line; margin-top: 3px; display: flex; gap: 4px; flex-direction: column; }
+.verdict-sub { font-size: var(--fs-body); color: var(--muted); margin-top: 3px; display: flex; gap: 4px; flex-direction: column; }
 
 .confidence-ring {
   position: relative;
@@ -335,16 +398,17 @@ aside {
   align-items: center; justify-content: center;
   font-family: var(--mono);
 }
-.ring-pct { font-size: 1.1rem; font-weight: 700; line-height: 1; }
-.ring-txt { font-size: .5rem; color: var(--muted); letter-spacing: .1em; margin-top: 2px; }
+.ring-pct { font-size: var(--fs-lg); font-weight: 700; line-height: 1; }
+.ring-txt { font-size: var(--fs-xs); color: var(--muted); letter-spacing: .1em; margin-top: 2px; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ===== AI BADGE ===== */
 .ai-badge {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
   padding: 14px 18px;
   border-radius: var(--radius);
   border: 1px solid rgba(199,125,255,.35);
@@ -354,10 +418,282 @@ aside {
 /* AI ring color override */
 .ai-badge .ring-fill { stroke: var(--ai); }
 .ai-badge .ring-bg { stroke: rgba(199,125,255,.2); }
-.ai-icon { font-size: 2.5rem; }
-.ai-label { font-size: 1.5rem; font-weight: 800; letter-spacing: .02em; color: var(--ai); }
-.ai-desc { font-size: .72rem; color: var(--muted); margin-top: 2px; white-space: pre-line; }
-.ai-conf { font-family: var(--mono); font-size: .85rem; font-weight: 700; margin-left: auto; color: var(--ai); }
+.ai-icon { font-size: var(--fs-display); }
+.ai-label { font-size: var(--fs-h1); font-weight: 800; letter-spacing: .02em; color: var(--ai); }
+.ai-desc { font-size: var(--fs-sm); color: var(--muted); margin-top: 2px; white-space: pre-line; }
+/* AI kutusu: özet herkese, teknik detay isteyene ------------------- */
+.verdict-evidence {
+  display: block;
+  margin-top: var(--space-2);
+  padding: 7px 9px;
+  border-radius: 4px;
+  background: rgba(255,204,0,.10);
+  border: 1px solid rgba(255,204,0,.35);
+  color: #ffdd66;
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  white-space: normal;
+}
+.verdict-evidence-detail {
+  display: block;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  margin-top: 3px;
+}
+.age-row {
+  width: 100%;
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+.age-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: var(--space-2);
+}
+.age-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.age-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(0,229,255,.08);
+  border: 1px solid rgba(0,229,255,.32);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+.age-chip-id { color: var(--muted); font-size: var(--fs-xs); }
+.age-chip-age { color: var(--accent); font-weight: 700; }
+.age-chip-margin { color: var(--muted); font-size: var(--fs-xs); }
+.age-note {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+.ai-head { display: flex; align-items: center; gap: 12px; }
+.ai-label-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ai-label-tag {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--warn);
+  background: rgba(255,204,0,.12);
+  border: 1px solid rgba(255,204,0,.4);
+}
+.ai-plain {
+  font-family: var(--sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-relaxed);
+  color: var(--text);
+}
+.ai-plain .ai-plain-note {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.ai-details {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+.ai-details-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 0;
+}
+.ai-details-summary::-webkit-details-marker { display: none; }
+.ai-details-summary:hover { color: var(--accent); }
+.ai-details-caret { transition: transform .18s ease; display: inline-block; }
+.ai-details[open] .ai-details-caret { transform: rotate(90deg); }
+.ai-details-hint {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ai-details-body {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.ai-details-body > .ai-section:first-child { border-top: 0; padding-top: 0; }
+
+/* ---------------------------------------------------------------
+   AI KARAR PANELİ — dört katman, her biri bir kez
+     1. Karar      : etiket + güven halkası
+     2. Bağlam     : içerik türü (medium)
+     3. Modeller   : her algoritmanın kendi skoru
+     4. Sinyaller  : istatistiksel ölçümler + notlar
+   Aynı bilgi iki katmanda tekrarlanmaz.
+   --------------------------------------------------------------- */
+.ai-section {
+  width: 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.ai-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.ai-section-title {
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ai-section-note {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.ai-badge-pill {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border);
+}
+.ai-model-strip { display: grid; gap: 6px; }
+.ai-frames {
+  margin-top: var(--space-2);
+  padding: 7px 9px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  line-height: var(--lh-normal);
+}
+.ai-frames b { color: var(--text); }
+.ai-model-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+}
+.ai-model-row.is-hot {
+  background: rgba(255,61,107,.10);
+  border-color: rgba(255,61,107,.32);
+}
+.ai-model-name {
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+}
+.ai-model-arch {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: var(--lh-tight);
+}
+.ai-model-score {
+  font-family: var(--mono);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  margin-left: auto;
+}
+.ai-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 6px;
+}
+.ai-signal {
+  padding: 6px 9px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+}
+.ai-signal.is-hot {
+  background: rgba(255,61,107,.10);
+  border-color: rgba(255,61,107,.32);
+}
+.ai-signal-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.ai-signal-score { font-family: var(--mono); margin-left: auto; }
+.ai-signal-note {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: var(--lh-normal);
+}
+.ai-notes { display: grid; gap: 6px; width: 100%; }
+.ai-note {
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+.ai-note--warn {
+  background: rgba(255,204,0,.10);
+  border: 1px solid rgba(255,204,0,.35);
+  color: #ffdd66;
+}
+.ai-note--info {
+  background: rgba(90,160,255,.10);
+  border: 1px solid rgba(90,160,255,.35);
+  color: #9ec5ff;
+}
+.box-legend {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255,255,255,.03);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.box-legend-item { display: flex; align-items: center; gap: 7px; }
+.box-legend-item b { font-family: var(--mono); color: var(--text); }
+.box-legend-swatch {
+  width: 16px; height: 16px; border-radius: 3px;
+  border: 2px solid; background: rgba(12,16,22,.9);
+  display: inline-block; flex: none;
+}
+.ai-conf { font-family: var(--mono); font-size: var(--fs-body); font-weight: 700; margin-left: auto; color: var(--ai); }
 
 /* ===== RESULT GRID ===== */
 .result-grid {
@@ -378,7 +714,7 @@ aside {
 .algo-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .algo-badge {
   font-family: var(--mono);
-  font-size: .7rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: .1em;
   padding: 3px 8px;
@@ -388,7 +724,7 @@ aside {
   border: 1px solid rgba(0,229,255,.2);
 }
 .algo-status {
-  font-size: .65rem;
+  font-size: var(--fs-sm);
   font-family: var(--mono);
 }
 .algo-status.ok { color: var(--safe); }
@@ -412,8 +748,8 @@ aside {
 
 .algo-stats { display: flex; gap: 16px; }
 .stat { text-align: center; }
-.stat-val { font-family: var(--mono); font-size: .9rem; font-weight: 700; color: var(--text); }
-.stat-key { font-size: .6rem; color: var(--muted); margin-top: 1px; }
+.stat-val { font-family: var(--mono); font-size: var(--fs-lg); font-weight: 700; color: var(--text); }
+.stat-key { font-size: var(--fs-xs); color: var(--muted); margin-top: 1px; }
 
 /* ===== IMAGE TABS ===== */
 .img-tabs-section {
@@ -433,7 +769,7 @@ aside {
   background: transparent;
   border: none;
   font-family: var(--mono);
-  font-size: .68rem;
+  font-size: var(--fs-sm);
   letter-spacing: .1em;
   color: var(--muted);
   cursor: pointer;
@@ -448,7 +784,7 @@ aside {
   background: rgba(0,229,255,.04);
 }
 .tab-content { display: none; padding: 16px; }
-.tab-content.active { display: flex; }
+.tab-content.active { display: flex; flex-direction: column; }
 .result-img {
   width: 100%;
   max-height: 420px;
@@ -482,11 +818,11 @@ aside {
   border-bottom: 1px solid var(--border);
 }
 .col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.col-title { font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; color: var(--muted); }
+.col-title { font-family: var(--mono); font-size: var(--fs-sm); letter-spacing: .12em; color: var(--muted); }
 .col-count {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: .65rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
   background: var(--bg);
   padding: 1px 6px;
@@ -502,18 +838,18 @@ aside {
   transition: border-color .2s;
 }
 .task-card:hover { border-color: var(--accent); }
-.task-card-title { font-size: .78rem; font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
+.task-card-title { font-size: var(--fs-body); font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
 .task-tag {
   display: inline-block;
   font-family: var(--mono);
-  font-size: .58rem;
+  font-size: var(--fs-xs);
   padding: 2px 6px;
   border-radius: 3px;
   letter-spacing: .08em;
 }
 .task-pts {
   font-family: var(--mono);
-  font-size: .65rem;
+  font-size: var(--fs-sm);
   color: var(--warn);
   margin-top: 5px;
 }
@@ -527,9 +863,9 @@ aside {
   border-radius: var(--radius);
   padding: 20px;
 }
-.manual-card h3 { font-size: .9rem; margin-bottom: 10px; }
+.manual-card h3 { font-size: var(--fs-lg); margin-bottom: 10px; }
 .manual-card p, .manual-card li {
-  font-size: .78rem;
+  font-size: var(--fs-body);
   color: var(--muted);
   line-height: 1.7;
 }
@@ -539,7 +875,7 @@ aside {
   background: var(--bg);
   padding: 1px 5px;
   border-radius: 3px;
-  font-size: .72rem;
+  font-size: var(--fs-sm);
   color: var(--accent);
 }
 
@@ -565,14 +901,14 @@ aside {
   border: 2px solid var(--accent);
   display: flex; align-items: center; justify-content: center;
   font-family: var(--mono);
-  font-size: .65rem;
+  font-size: var(--fs-sm);
   text-align: center;
   background: rgba(0,229,255,.06);
   color: var(--accent);
   font-weight: 700;
   line-height: 1.2;
 }
-.fsm-bubble span { font-size: .6rem; color: var(--muted); font-family: var(--mono); }
+.fsm-bubble span { font-size: var(--fs-xs); color: var(--muted); font-family: var(--mono); }
 .fsm-edge {
   flex: 1;
   display: flex;
@@ -592,9 +928,9 @@ aside {
   right: -6px;
   top: -8px;
   color: var(--muted);
-  font-size: .7rem;
+  font-size: var(--fs-sm);
 }
-.fsm-edge-label { font-family: var(--mono); font-size: .6rem; color: var(--muted); margin-top: 6px; }
+.fsm-edge-label { font-family: var(--mono); font-size: var(--fs-xs); color: var(--muted); margin-top: 6px; }
 
 /* Effort table */
 .effort-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -602,9 +938,9 @@ aside {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border);
-  font-size: .78rem;
+  font-size: var(--fs-body);
 }
-.effort-table th { font-family: var(--mono); font-size: .65rem; letter-spacing: .12em; color: var(--muted); }
+.effort-table th { font-family: var(--mono); font-size: var(--fs-sm); letter-spacing: .12em; color: var(--muted); }
 .effort-table td:last-child { font-family: var(--mono); color: var(--accent); }
 .effort-total { font-family: var(--mono); font-weight: 700; color: var(--accent3); }
 
@@ -617,7 +953,7 @@ aside {
   border-radius: var(--radius);
   padding: 12px 18px;
   font-family: var(--mono);
-  font-size: .75rem;
+  font-size: var(--fs-body);
   z-index: 9999;
   transform: translateY(80px);
   opacity: 0;
@@ -718,7 +1054,7 @@ aside {
     <div id="results" style="display:none">
 
       <!-- Verdict + AI side by side -->
-      <div class="vai" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch">
+      <div class="vai" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);align-items:stretch">
 
         <!-- Verdict banner -->
         <div id="verdict-banner" class="verdict-banner" style="margin:0">
@@ -743,13 +1079,18 @@ aside {
           </div>
         </div>
 
-        <!-- AI Badge with ring -->
-        <div class="ai-badge" id="ai-badge" style="margin:0;flex-direction:column;gap:10px">
-          <div style="display:flex;align-items:center;gap:12px;width:100%">
+        <!-- AI kutusu: önce herkesin anlayacağı özet, teknik detay açılır kutuda -->
+        <div class="ai-badge" id="ai-badge">
+
+          <!-- ÖZET -->
+          <div class="ai-head">
             <span class="ai-icon">🤖</span>
-            <div style="flex:1">
-              <div class="ai-label" id="ai-label">AI TESPİT</div>
-              <div class="ai-desc" id="ai-desc" style="margin-top:3px"></div>
+            <div style="flex:1;min-width:0">
+              <div class="ai-label-row">
+                <span class="ai-label" id="ai-label">AI TESPİT</span>
+                <span class="ai-label-tag" id="ai-label-tag" style="display:none"></span>
+              </div>
+              <div class="ai-desc" id="ai-desc"></div>
             </div>
             <div class="confidence-ring">
               <svg viewBox="0 0 90 90" width="90" height="90">
@@ -765,13 +1106,130 @@ aside {
               </div>
             </div>
           </div>
-          <!-- 8-signal detail grid -->
-          <div id="ai-signal-grid" style="
-            display:grid;grid-template-columns:1fr 1fr;gap:5px;width:100%;
-            font-family:var(--mono);font-size:.6rem;
-          "></div>
+
+          <!-- Sade dille açıklama + önemli uyarılar -->
+          <div id="ai-plain" class="ai-plain"></div>
+
+          <!-- TEKNİK DETAYLAR (katlanmış) -->
+          <details class="ai-details" id="ai-details">
+            <summary class="ai-details-summary">
+              <span class="ai-details-caret">▸</span>
+              <span>Teknik detaylar</span>
+              <span class="ai-details-hint" id="ai-details-hint"></span>
+            </summary>
+            <div class="ai-details-body">
+
+              <!-- 1. Bağlam: içerik türü -->
+              <div id="ai-medium-row" class="ai-section" style="display:none">
+                <div class="ai-section-head">
+                  <span class="ai-section-title">İçerik Türü</span>
+                  <span id="ai-medium-badge" class="ai-badge-pill"></span>
+                </div>
+                <div id="ai-medium-scores" class="ai-section-note"></div>
+              </div>
+
+              <!-- 2. Modeller -->
+              <div id="ai-model-section" class="ai-section">
+                <div class="ai-section-head">
+                  <span class="ai-section-title">Modeller</span>
+                  <span id="ai-model-count" class="ai-section-note"></span>
+                </div>
+                <div id="ai-model-strip" class="ai-model-strip"></div>
+                <div id="ai-frames" class="ai-frames" style="display:none"></div>
+              </div>
+
+              <!-- 3. İstatistiksel sinyaller -->
+              <div id="ai-signal-section" class="ai-section">
+                <div class="ai-section-head">
+                  <span class="ai-section-title">İstatistiksel Sinyaller</span>
+                  <span id="ai-signal-count" class="ai-section-note"></span>
+                </div>
+                <div id="ai-signal-grid" class="ai-signal-grid"></div>
+              </div>
+
+              <!-- 4. Notlar -->
+              <div id="ai-notes" class="ai-notes">
+                <div id="ai-boost-note" class="ai-note ai-note--warn" style="display:none"></div>
+                <div id="ai-medium-caution" class="ai-note ai-note--info" style="display:none"></div>
+              </div>
+
+            </div>
+          </details>
         </div>
 
+      </div>
+
+      <!-- Kişi sayısı tespiti (User Story-5) -->
+      <div>
+        <div class="section-label"> Kişi Sayısı Tespiti</div>
+        <div id="person-panel" style="
+          border:1px solid var(--border);border-radius:6px;
+          background:rgba(255,255,255,.02);padding:var(--space-3)
+        ">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div style="
+              min-width:74px;text-align:center;padding:8px 12px;border-radius:6px;
+              background:rgba(60,220,130,.10);border:1px solid rgba(60,220,130,.35)
+            ">
+              <div id="person-count" style="
+                font-family:var(--mono);font-size:var(--fs-metric);font-weight:700;
+                line-height:1;color:var(--safe)
+              ">0</div>
+              <div style="color:var(--muted);font-size:var(--fs-xs);margin-top:3px">KİŞİ</div>
+            </div>
+            <div style="flex:1;min-width:220px">
+              <div id="person-summary" style="
+                font-size:var(--fs-body);line-height:1.55
+              "></div>
+              <div id="person-models" style="
+                color:var(--muted);font-family:var(--mono);font-size:var(--fs-xs);margin-top:5px
+              "></div>
+            </div>
+            <div id="person-chips" style="
+              display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+              font-family:var(--mono);font-size:var(--fs-xs)
+            "></div>
+          </div>
+          <!-- Yaş tahminleri (User Story-6) -->
+          <div id="age-row" class="age-row" style="display:none">
+            <div class="age-head">
+              <span class="ai-section-title">Tahmini Yaşlar</span>
+              <span id="age-model" class="ai-section-note"></span>
+            </div>
+            <div id="age-chips" class="age-chips"></div>
+            <div id="age-note" class="age-note"></div>
+          </div>
+
+          <div id="person-note" style="
+            display:none;margin-top:var(--space-2);padding:7px 9px;border-radius:4px;
+            background:rgba(255,176,32,.10);border:1px solid rgba(255,176,32,.35);
+            color:var(--warn);font-family:var(--mono);font-size:var(--fs-xs);line-height:1.5
+          "></div>
+        </div>
+      </div>
+
+      <!-- Metadata / AI tag report (User Story-4) -->
+      <div>
+        <div class="section-label"> Metadata / AI Tag İncelemesi</div>
+        <div id="meta-panel" style="
+          border:1px solid var(--border);border-radius:6px;
+          background:rgba(255,255,255,.02);padding:var(--space-3)
+        ">
+          <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <span id="meta-icon" style="font-size:var(--fs-metric);line-height:1">🏷️</span>
+            <div style="flex:1;min-width:220px">
+              <div id="meta-verdict" style="font-weight:700;font-size:var(--fs-body)"></div>
+              <div id="meta-summary" style="
+                color:var(--muted);font-size:var(--fs-sm);margin-top:4px;line-height:1.5
+              "></div>
+            </div>
+            <div id="meta-chips" style="
+              display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+              font-family:var(--mono);font-size:var(--fs-xs)
+            "></div>
+          </div>
+          <div id="meta-findings" style="margin-top:var(--space-3);display:grid;gap:var(--space-1)"></div>
+        </div>
       </div>
 
       <!-- Algorithm result cards -->
@@ -783,13 +1241,27 @@ aside {
       <!-- Image tabs -->
       <div class="img-tabs-section">
         <div class="tab-nav">
-          <button class="tab-btn active" onclick="switchTab('annotated')">🗺️ ANNOTATED</button>
-          <button class="tab-btn" onclick="switchTab('heatmap')">🔥 HEATMAP</button>
-          <button class="tab-btn" onclick="switchTab('ela')">⚡ ELA</button>
-          <button class="tab-btn" onclick="switchTab('original')">📷 ORİJİNAL</button>
+          <button class="tab-btn active" data-tab="annotated" onclick="switchTab('annotated')">🗺️ ANNOTATED</button>
+          <button class="tab-btn" data-tab="heatmap" onclick="switchTab('heatmap')">🔥 HEATMAP</button>
+          <button class="tab-btn" data-tab="ela" onclick="switchTab('ela')">⚡ ELA</button>
+          <button class="tab-btn" data-tab="persons" id="tab-btn-persons" onclick="switchTab('persons')">👥 KİŞİLER</button>
+          <button class="tab-btn" data-tab="original" onclick="switchTab('original')">📷 ORİJİNAL</button>
         </div>
         <div class="tab-content active" id="tab-annotated">
           <img class="result-img" id="img-annotated" alt="annotated" />
+        </div>
+        <div class="tab-content" id="tab-persons">
+          <img class="result-img" id="img-persons" alt="kişi kutuları" />
+          <div class="box-legend">
+            <span class="box-legend-item">
+              <span class="box-legend-swatch" style="border-color:#78f082"></span>
+              <b>#1, #2…</b> gövde kutusu ve güven skoru
+            </span>
+            <span class="box-legend-item">
+              <span class="box-legend-swatch" style="border-color:#50d7ff"></span>
+              <b>Y1, Y2…</b> yüz kutusu ve güven skoru
+            </span>
+          </div>
         </div>
         <div class="tab-content" id="tab-heatmap">
           <img class="result-img" id="img-heatmap" alt="heatmap" />
@@ -996,17 +1468,32 @@ async function runAnalysis() {
 // ============================================================
 function displayResults(data) {
   document.getElementById("empty-state").style.display = "none";
-  document.getElementById("results").style.display = "block";
+  document.getElementById("results").style.display = "grid";
 
   // Verdict
   const banner = document.getElementById("verdict-banner");
   banner.className = `verdict-banner ${data.tampered ? "tampered" : "clean"}`;
+  // Düzenleme kararı. Dosyanın kendi künyesi (C2PA) "düzenlendi" diyorsa bu,
+  // piksel analizinden bağımsız doğrudan bir kanıttır ve ayrıca belirtilir.
+  const edit = data.edit_evidence || {};
   document.getElementById("verdict-icon").textContent = data.tampered ? "⚠️" : "✅";
   document.getElementById("verdict-title").textContent = data.tampered
-    ? "EDİTLENMİŞ GÖRÜNTÜ"
+    ? (edit.present ? "DÜZENLENMİŞ GÖRÜNTÜ" : "EDİTLENMİŞ GÖRÜNTÜ")
     : "EDİT TESPİT EDİLEMEDİ";
-document.getElementById("verdict-sub").textContent =
-    `Birleşik güven skoru: %${data.confidence.toFixed(1)} \nELA: %${(data.ela_confidence||0).toFixed(1)} \nGörüntü: ${data.image_size?.width}×${data.image_size?.height}`;
+
+  const subSatirlar = [
+    `Piksel analizi: %${data.confidence.toFixed(1)}`,
+    `ELA: %${(data.ela_confidence || 0).toFixed(1)}`,
+    `Görüntü: ${data.image_size?.width}×${data.image_size?.height}`,
+  ];
+  document.getElementById("verdict-sub").innerHTML =
+    subSatirlar.map(escapeHtml).join("<br>") +
+    (edit.present
+      ? `<span class="verdict-evidence">📄 ${escapeHtml(edit.label)}` +
+        (edit.detail
+          ? `<br><span class="verdict-evidence-detail">${escapeHtml(edit.detail)}</span>`
+          : "") + `</span>`
+      : "");
 
   // Ring
   const circumference = 238.76;
@@ -1014,52 +1501,55 @@ document.getElementById("verdict-sub").textContent =
   document.getElementById("ring-fill").style.strokeDashoffset = offset;
   document.getElementById("ring-pct").textContent = `%${Math.round(data.confidence)}`;
 
-  // AI badge
+  // --- AI KARARI: önce sade özet ---
   const aiConf = data.ai_confidence || 0;
   const aiGenerated = data.ai_generated || false;
   const verdictLabel = data.ai_verdict_label || (aiGenerated ? "AI ALGILANDI" : "AI ALGILANMADI");
-  const signalDetail = data.ai_signal_detail || [];
 
-  document.getElementById("ai-label").textContent = verdictLabel;
-  document.getElementById("ai-label").style.color = aiGenerated ? "var(--danger)" : "var(--safe)";
-  document.getElementById("ai-desc").textContent =
-    `${signalDetail.filter(s=>s.score>=60).length}/${signalDetail.length} sinyal AI imzası tespit etti`;
+  // Uzun etiketi ikiye böl: ana karar büyük, eki küçük rozet.
+  // ("AI ÜRETİMİ — KESİN · metadata AI etiketli" tek satıra sığmıyordu.)
+  const [anaKarar, ...ekler] = verdictLabel.split(" · ");
+  const labelEl = document.getElementById("ai-label");
+  labelEl.textContent = anaKarar;
+  labelEl.style.color = aiGenerated ? "var(--danger)" : "var(--safe)";
 
-  // Animate AI ring
+  const tagEl = document.getElementById("ai-label-tag");
+  if (ekler.length) {
+    tagEl.style.display = "";
+    tagEl.textContent = ekler.join(" · ");
+  } else {
+    tagEl.style.display = "none";
+  }
+
+  document.getElementById("ai-desc").textContent = aiPlainHeadline(data, aiConf);
+  document.getElementById("ai-plain").innerHTML = aiPlainExplanation(data, aiConf);
+
   const aiOffset = 238.76 - (aiConf / 100) * 238.76;
   document.getElementById("ai-ring-fill").style.strokeDashoffset = aiOffset;
   document.getElementById("ai-ring-pct").textContent = `%${Math.round(aiConf)}`;
 
-  // Signal detail grid
-  const sigGrid = document.getElementById("ai-signal-grid");
-  if (signalDetail.length > 0) {
-    sigGrid.innerHTML = signalDetail.map(s => {
-      const hot = s.score >= 60;
-      return `<div style="
-        padding:4px 6px;border-radius:3px;
-        background:${hot ? 'rgba(255,61,107,.12)' : 'rgba(255,255,255,.04)'};
-        border:1px solid ${hot ? 'rgba(255,61,107,.35)' : 'var(--border)'};
-      ">
-        <div style="color:${hot ? 'var(--danger)' : 'var(--muted)'};font-weight:700">
-          ${hot ? '⚠' : '✓'} ${s.name}
-        </div>
-        <div style="color:var(--muted);margin-top:2px;font-size:.55rem;line-height:1.3">${s.label}</div>
-      </div>`;
-    }).join("");
-  } else {
-    // Fallback for old API response (cnn/lstm fields)
-    const cnnC = data.ai_cnn_confidence || 0;
-    const lstmC = data.ai_lstm_confidence || 0;
-    sigGrid.innerHTML = `
-      <div style="padding:4px 6px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:3px">
-        <div style="color:var(--muted)">CNN</div>
-        <div style="color:var(--ai)">%${cnnC.toFixed(1)}</div>
-      </div>
-      <div style="padding:4px 6px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:3px">
-        <div style="color:var(--muted)">LSTM</div>
-        <div style="color:var(--ai)">%${lstmC.toFixed(1)}</div>
-      </div>`;
-  }
+  // --- Teknik detaylar (katlanmış kutunun içi) ---
+  renderModelScores(data);
+
+  // --- 4. İstatistiksel sinyaller ---
+  renderSignals(data.ai_signal_detail);
+
+  // "Teknik detaylar" satırına içerik özeti: açmadan ne olduğu görünsün
+  const modelSayisi = (data.ai_model_scores || [])
+    .filter(m => m.key !== "statistical").length;
+  const sinyalSayisi = (data.ai_signal_detail || []).length;
+  const ipucu = [];
+  if (modelSayisi)  ipucu.push(`${modelSayisi} model`);
+  if (sinyalSayisi) ipucu.push(`${sinyalSayisi} sinyal`);
+  if (data.medium_report && data.medium_report.available) ipucu.push("içerik türü");
+  document.getElementById("ai-details-hint").textContent = ipucu.join(" · ");
+
+  // Kişi sayısı (US-5) ve yaş tahmini (US-6)
+  renderPersons(data);
+  renderAges(data.age_report);
+
+  // Metadata / AI tag (User Story-4)
+  renderMetadata(data.metadata_report);
 
   // Algorithm cards
   const grid = document.getElementById("result-grid");
@@ -1122,6 +1612,478 @@ document.getElementById("verdict-sub").textContent =
   toast("Analiz tamamlandı!", "success");
 }
 
+// ============================================================
+// KİŞİ SAYISI PANELİ  (User Story-5)
+// ============================================================
+
+/**
+ * Yaş tahminlerini kişi panelinin altına çipler halinde basar (US-6).
+ * Çip kimliği KİŞİLER sekmesindeki yüz numarasıyla (Y1, Y2…) aynıdır.
+ */
+function renderAges(report) {
+  const row    = document.getElementById("age-row");
+  const chips  = document.getElementById("age-chips");
+  const modelEl= document.getElementById("age-model");
+  const noteEl = document.getElementById("age-note");
+
+  const ages = (report && report.ages) || [];
+  if (!report || !report.available || ages.length === 0) {
+    row.style.display = "none";
+    return;
+  }
+
+  row.style.display = "block";
+  const m = report.model || {};
+  modelEl.textContent = m.architecture || "";
+
+  chips.innerHTML = ages
+    .slice()
+    .sort((a, b) => a.face_index - b.face_index)
+    .map(a => `<span class="age-chip" title="${escapeHtml(
+        "En olası sınıf: " + (a.likely_range || "-"))}">
+      <span class="age-chip-id">Y${a.face_index + 1}</span>
+      <span class="age-chip-age">${a.age} yaş</span>
+      <span class="age-chip-margin">±${a.margin}</span>
+    </span>`).join("");
+
+  noteEl.textContent =
+    "Yaş tahmini yaklaşıktır: ışık, poz, makyaj, sakal ve çözünürlük sonucu " +
+    "kaydırabilir. ± değeri modelin kendi kararsızlığından hesaplanır. " +
+    "Adli bir delil değil, bir tahmindir.";
+}
+
+/**
+ * Kişi sayımı raporunu panele basar: sayı, özet, model künyesi ve çipler.
+ * Modeller indirilmemişse panel bunu açıkça söyler (sessizce 0 göstermez).
+ */
+function renderPersons(data) {
+  const report  = data.person_report || {};
+  const countEl = document.getElementById("person-count");
+  const sumEl   = document.getElementById("person-summary");
+  const modEl   = document.getElementById("person-models");
+  const chipsEl = document.getElementById("person-chips");
+  const noteEl  = document.getElementById("person-note");
+
+  const chip = (text, color) => `<span style="
+    padding:3px 7px;border-radius:3px;background:rgba(255,255,255,.05);
+    border:1px solid var(--border);color:${color || 'var(--muted)'}
+  ">${escapeHtml(text)}</span>`;
+
+  if (!report.available) {
+    countEl.textContent = "–";
+    countEl.style.color = "var(--muted)";
+    sumEl.innerHTML = escapeHtml(report.summary || "Kişi tespiti çalıştırılmadı.");
+    modEl.textContent = "";
+    chipsEl.innerHTML = "";
+    noteEl.style.display = "block";
+    noteEl.innerHTML =
+      "⚠️ Kişi tespiti modelleri yüklü değil. İndirmek için: " +
+      "<code>python tools/download_models.py --component person</code>";
+    document.getElementById("tab-btn-persons").style.display = "none";
+    document.getElementById("age-row").style.display = "none";
+    return;
+  }
+
+  const count = Number(report.person_count || 0);
+  countEl.textContent = count;
+  countEl.style.color = count > 0 ? "var(--safe)" : "var(--muted)";
+  sumEl.innerHTML = escapeHtml(report.summary || "");
+
+  const models = report.models || {};
+  modEl.textContent = `gövde: ${models.body || "-"}  ·  yüz: ${models.face || "-"}`;
+
+  chipsEl.innerHTML = [
+    chip(`GÖVDE ${report.body_count ?? 0}`, "var(--safe)"),
+    chip(`YÜZ ${report.face_count ?? 0}`, "var(--ai)"),
+    report.extra_from_face ? chip(`YALNIZ YÜZ ${report.extra_from_face}`, "var(--warn)") : "",
+    report.thresholds && report.thresholds.person_score
+      ? chip(`eşik %${Math.round(report.thresholds.person_score * 100)}`)
+      : "",
+  ].filter(Boolean).join("");
+
+  // Kişi kutusu görseli ve sekmesi
+  const btn = document.getElementById("tab-btn-persons");
+  if (data.persons_b64) {
+    document.getElementById("img-persons").src =
+      `data:image/png;base64,${data.persons_b64}`;
+    btn.style.display = "";
+  } else {
+    btn.style.display = "none";
+  }
+
+  // Modellerin eğitim alanı dışındaki içerik için dürüst uyarı
+  if (count === 0) {
+    noteEl.style.display = "block";
+    noteEl.innerHTML =
+      "ℹ️ Kişi bulunamadı. Modeller <b>gerçek fotoğraflarla</b> eğitildiği için " +
+      "çizim, anime ve oyun görüntülerinde kişiler atlanabilir.";
+  } else {
+    noteEl.style.display = "none";
+    noteEl.innerHTML = "";
+  }
+}
+
+// ============================================================
+// MODEL BAZLI AI SKORLARI  (User Story-3)
+// ============================================================
+
+/**
+ * Her AI algoritmasının kendi skorunu ayrı satır olarak gösterir ve
+ * metadata kaynaklı sınırlı skor artışını (K-12) açıkça belirtir.
+ */
+/**
+ * Kart başlığının altındaki tek cümlelik özet — teknik terim kullanmaz.
+ */
+function aiPlainHeadline(data, conf) {
+  const m = data.medium_report || {};
+  if (m.blocks_ai_verdict) return "Bu bir ekran görüntüsü — AI kararı verilmedi.";
+  if (conf >= 80) return "Büyük olasılıkla yapay zekâ ile üretilmiş.";
+  if (conf >= 65) return "Yapay zekâ üretimi işaretleri güçlü.";
+  if (conf >= 50) return "Yapay zekâ işaretleri var ama kesin değil.";
+  if (conf >= 35) return "Gerçek görüntüye benziyor, kesin değil.";
+  return "Yapay zekâ üretimi işareti bulunmadı.";
+}
+
+/**
+ * Kararı normal bir kullanıcının anlayacağı dille açıklar.
+ * Teknik gerekçe (model skorları, sinyaller) açılır kutuda kalır.
+ */
+function aiPlainExplanation(data, conf) {
+  const m = data.medium_report || {};
+  const meta0 = data.metadata_report || {};
+  const boost = data.ai_metadata_boost;
+  const parcalar = [];
+
+  if (m.blocks_ai_verdict) {
+    parcalar.push(
+      "Bu görüntü bir <b>ekran görüntüsü veya arayüz grafiği</b>. " +
+      "Bu tür içerikler yapay zekâ görsellerine çok benzediği için " +
+      "yanlış alarm vermemek adına AI kararı verilmedi."
+    );
+  } else if (boost && boost.applied) {
+    const gens = (boost.generators || []).map(escapeHtml).join(", ");
+    const kismi = boost.verdict === "c2pa_ai_composite";
+    parcalar.push(
+      kismi
+        ? "Dosyanın künyesine göre bu görüntü <b>kısmen</b> yapay zekâ ile " +
+          "üretilmiş: gerçek bir içeriğe AI üretimi parçalar eklenmiş. " +
+          `Bu yüzden güven skoru <b>%${Math.round(boost.base)}</b>'ten ` +
+          `<b>%${Math.round(boost.final)}</b>'e yükseltildi — ama "tamamen ` +
+          `yapay zekâ üretimi" demek değildir.`
+        : "Dosyanın kendi künyesinde <b>yapay zekâ etiketi</b> bulundu" +
+          (gens ? ` (${gens})` : "") + ". Bu güçlü bir kanıt, bu yüzden " +
+          `güven skoru <b>%${Math.round(boost.base)}</b>'ten ` +
+          `<b>%${Math.round(boost.final)}</b>'e yükseltildi.`
+    );
+  } else if (meta0.verdict === "c2pa_ai_enhanced") {
+    parcalar.push(
+      "Dosyanın künyesine göre bu gerçek bir görüntü ve yalnızca <b>yapay zekâ " +
+      "ile iyileştirilmiş</b> (çözünürlük artırma / gürültü temizleme). " +
+      "İçerik yapay zekâ üretimi değildir, bu yüzden AI skoru yükseltilmedi."
+    );
+  } else if (conf >= 65) {
+    parcalar.push(
+      `Görüntünün yapay zekâ ile üretilmiş olma ihtimali <b>%${Math.round(conf)}</b>. ` +
+      "Bu karar, iki ayrı yapay zekâ modelinin ve görüntünün dokusunu inceleyen " +
+      "istatistiksel ölçümlerin ortak sonucudur."
+    );
+  } else if (conf >= 35) {
+    parcalar.push(
+      `Sonuç kararsız: yapay zekâ ihtimali <b>%${Math.round(conf)}</b>. ` +
+      "Modeller net bir işaret bulamadı; tek başına bu skora dayanarak karar vermeyin."
+    );
+  } else {
+    parcalar.push(
+      `Modeller yapay zekâ izine rastlamadı (ihtimal <b>%${Math.round(conf)}</b>). ` +
+      "Görüntü gerçek bir çekim gibi davranıyor."
+    );
+  }
+
+  // Fotoğraf olmayan içerikte dürüst uyarı
+  if (m.available && !m.photographic && m.confident && !m.blocks_ai_verdict) {
+    parcalar.push(
+      `<span class="ai-plain-note">Not: bu bir fotoğraf değil ` +
+      `(${escapeHtml(m.medium_label || "")}). İnsan yapımı eserlerle yapay zekâ ` +
+      `üretimlerinin ayrımı bu tür içerikte daha zordur.</span>`
+    );
+  }
+
+  // Metadata'da iz yoksa, bunun "gerçek" demek olmadığını söyle
+  const meta = data.metadata_report || {};
+  if (meta.available && (meta.verdict === "stripped" || meta.verdict === "no_trace")) {
+    parcalar.push(
+      `<span class="ai-plain-note">Dosya künyesinde üretici etiketi yok. ` +
+      `Bu etiketler kolayca silinebildiği için, yokluğu görüntünün gerçek ` +
+      `olduğunu kanıtlamaz.</span>`
+    );
+  }
+
+  return parcalar.join("");
+}
+
+const MEDIUM_STYLE = {
+  photograph: { label: "📷 Fotoğraf",        color: "var(--safe)" },
+  artwork:    { label: "🎨 Tablo / Çizim",   color: "#9ec5ff" },
+  render:     { label: "🎮 3B Render / Oyun", color: "#9ec5ff" },
+  screenshot: { label: "🖥️ Ekran Görüntüsü", color: "var(--warn)" },
+  unknown:    { label: "— Belirlenemedi",     color: "var(--muted)" },
+};
+
+/**
+ * İçerik türü (medium) rozetini ve fotoğraf dışı içerik uyarısını basar.
+ * Medium ekseni, "fotoğraf değil" ile "AI üretimi"nin karıştırılmasını önler.
+ */
+function renderMedium(report) {
+  const row      = document.getElementById("ai-medium-row");
+  const badge    = document.getElementById("ai-medium-badge");
+  const scoresEl = document.getElementById("ai-medium-scores");
+  const caution  = document.getElementById("ai-medium-caution");
+
+  if (!report || !report.available) {
+    row.style.display = "none";
+    caution.style.display = "none";
+    return;
+  }
+
+  const style = MEDIUM_STYLE[report.medium] || MEDIUM_STYLE.unknown;
+  row.style.display = "block";
+  badge.textContent = `${style.label} %${Number(report.confidence || 0).toFixed(0)}`;
+  badge.style.color = style.color;
+
+  // Diğer sınıfların skorları — seçilen tekrar edilmez
+  const s = report.scores || {};
+  scoresEl.textContent = ["photograph", "artwork", "render", "screenshot"]
+    .filter(k => k !== report.medium && s[k] !== undefined)
+    .map(k => `${MEDIUM_STYLE[k].label.replace(/^\S+\s/, "")} %${Number(s[k]).toFixed(0)}`)
+    .join("   ·   ");
+
+  if (report.caution) {
+    caution.style.display = "block";
+    caution.innerHTML = escapeHtml(report.caution);
+  } else {
+    caution.style.display = "none";
+    caution.innerHTML = "";
+  }
+}
+
+/**
+ * Modeller bölümü: her AI algoritmasının kendi skoru (US-3).
+ * İstatistiksel kanal burada **toplam** olarak görünür; onu oluşturan beş
+ * sinyal ayrı bölümde listelenir — aynı bilgi iki kez yazılmaz.
+ */
+function renderModelScores(data) {
+  const strip   = document.getElementById("ai-model-strip");
+  const countEl = document.getElementById("ai-model-count");
+  const note    = document.getElementById("ai-boost-note");
+  const section = document.getElementById("ai-model-section");
+  const scores  = data.ai_model_scores || [];
+
+  renderMedium(data.medium_report);
+
+  if (scores.length === 0) {
+    section.style.display = "none";
+  } else {
+    section.style.display = "";
+    const ogrenen = scores.filter(m => m.key !== "statistical").length;
+    countEl.textContent = `${ogrenen} öğrenen model + istatistiksel kanal`;
+
+    strip.innerHTML = scores.map(m => {
+      const score  = Number(m.score || 0);
+      const hot    = score >= 50;
+      const isStat = m.key === "statistical";
+      return `<div class="ai-model-row${hot ? " is-hot" : ""}">
+        <span>${isStat ? "📐" : "🧠"}</span>
+        <div style="flex:1;min-width:0">
+          <div class="ai-model-name" style="color:${hot ? "var(--danger)" : "var(--text)"}">
+            ${escapeHtml(m.name)}
+          </div>
+          <div class="ai-model-arch">${escapeHtml(m.architecture || "")}</div>
+        </div>
+        <span class="ai-model-score" style="color:${hot ? "var(--danger)" : "var(--muted)"}">
+          %${score.toFixed(1)}
+        </span>
+      </div>`;
+    }).join("");
+  }
+
+  // Animasyonlu dosyalarda kare kare dağılım (US-1 sınırlamasının çözümü)
+  const fa = data.ai_frame_analysis || {};
+  const framesEl = document.getElementById("ai-frames");
+  if (fa.animated) {
+    framesEl.style.display = "block";
+    const sk = (fa.scores || []).map(s => Math.round(s));
+    framesEl.innerHTML =
+      `<b>${fa.frames_analyzed} kare analiz edildi</b> — ` +
+      `${fa.flagged}/${fa.frames_analyzed} karede AI işareti. ` +
+      `Skorlar: ${sk.join(" · ")} (sapma ${fa.std}).<br>` +
+      `Gösterilen skor: ${escapeHtml(fa.method)}.`;
+  } else {
+    framesEl.style.display = "none";
+  }
+
+  const boost = data.ai_metadata_boost;
+  if (boost && boost.applied) {
+    const gens = (boost.generators || []).map(escapeHtml).join(", ");
+    note.style.display = "block";
+    note.innerHTML =
+      `<b>🏷️ Metadata artışı:</b> dosya yapısında AI etiketi bulundu` +
+      (gens ? ` (${gens})` : "") +
+      `. Piksel skoru %${Number(boost.base).toFixed(1)} → ` +
+      `<b>%${Number(boost.final).toFixed(1)}</b> (+${Number(boost.delta).toFixed(1)}). ` +
+      `Metadata kopyalanabildiği için artış %${boost.cap} ile sınırlı.`;
+  } else {
+    note.style.display = "none";
+    note.innerHTML = "";
+  }
+}
+
+/**
+ * İstatistiksel sinyaller bölümü. Model skorları burada tekrarlanmaz;
+ * sunucu yalnızca ölçüm satırlarını gönderir.
+ */
+function renderSignals(signalDetail) {
+  const grid    = document.getElementById("ai-signal-grid");
+  const countEl = document.getElementById("ai-signal-count");
+  const section = document.getElementById("ai-signal-section");
+  const list    = signalDetail || [];
+
+  if (list.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "";
+
+  const hotCount = list.filter(s => Number(s.score) >= 60).length;
+  countEl.textContent = `${hotCount}/${list.length} sinyal AI imzası gösteriyor`;
+
+  grid.innerHTML = list.map(s => {
+    const score = Number(s.score || 0);
+    const hot   = score >= 60;
+    return `<div class="ai-signal${hot ? " is-hot" : ""}">
+      <div class="ai-signal-name" style="color:${hot ? "var(--danger)" : "var(--text)"}">
+        <span>${hot ? "⚠" : "✓"}</span>
+        <span>${escapeHtml(s.name)}</span>
+        <span class="ai-signal-score" style="color:${hot ? "var(--danger)" : "var(--muted)"}">
+          %${score.toFixed(0)}
+        </span>
+      </div>
+      ${s.label ? `<div class="ai-signal-note">${escapeHtml(s.label)}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+// ============================================================
+// METADATA / AI TAG PANELİ  (User Story-4)
+// ============================================================
+
+/** Metadata değerleri üçüncü taraf kontrolünde — HTML olarak asla güvenilmez. */
+function escapeHtml(text) {
+  return String(text ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+const META_VERDICT_STYLE = {
+  ai_signature:      { color: "var(--danger)", icon: "🚨" },
+  c2pa_ai:           { color: "var(--danger)", icon: "🚨" },
+  // "AI kullanılmış" ≠ "AI ile üretilmiş": kompozit ve iyileştirme ayrı gösterilir
+  c2pa_ai_composite: { color: "var(--warn)",   icon: "🧩" },
+  c2pa_ai_enhanced:  { color: "var(--accent)", icon: "✨" },
+  ai_suspect:      { color: "var(--danger)", icon: "⚠️" },
+  camera_evidence: { color: "var(--safe)",   icon: "📷" },
+  stripped:        { color: "var(--warn)",   icon: "🧹" },
+  no_trace:        { color: "var(--muted)",  icon: "🏷️" },
+  unavailable:     { color: "var(--muted)",  icon: "⛔" },
+  error:           { color: "var(--muted)",  icon: "⛔" },
+};
+
+const META_SEVERITY_COLOR = {
+  high:   "var(--danger)",
+  medium: "var(--warn)",
+  good:   "var(--safe)",
+  info:   "var(--muted)",
+};
+
+function renderMetadata(report) {
+  const verdictEl  = document.getElementById("meta-verdict");
+  const summaryEl  = document.getElementById("meta-summary");
+  const iconEl     = document.getElementById("meta-icon");
+  const chipsEl    = document.getElementById("meta-chips");
+  const findingsEl = document.getElementById("meta-findings");
+
+  if (!report) {
+    iconEl.textContent    = "⛔";
+    verdictEl.textContent = "Metadata raporu yok";
+    verdictEl.style.color = "var(--muted)";
+    summaryEl.textContent = "Sunucu bu alanı döndürmedi (eski API sürümü olabilir).";
+    chipsEl.innerHTML     = "";
+    findingsEl.innerHTML  = "";
+    return;
+  }
+
+  const style = META_VERDICT_STYLE[report.verdict] || META_VERDICT_STYLE.no_trace;
+  iconEl.textContent    = style.icon;
+  verdictEl.textContent = report.verdict_label || "—";
+  verdictEl.style.color = style.color;
+  summaryEl.textContent = report.summary || "";
+
+  // Bilgi çipleri
+  const blocks = report.blocks || {};
+  const chips  = [
+    { label: report.file_format || "?", on: true },
+    { label: `${report.file_size_kb ?? 0} KB`, on: true },
+    { label: "EXIF",     on: !!blocks.exif },
+    { label: "XMP",      on: !!blocks.xmp },
+    { label: "PNG-text", on: !!blocks.png_text },
+    { label: "C2PA",     on: !!(report.c2pa && report.c2pa.present) },
+  ];
+  if (report.camera_evidence && report.camera_evidence.count) {
+    chips.push({ label: `kamera: ${report.camera_evidence.count} alan`, on: true });
+  }
+  if (report.ai_tag_found) {
+    chips.push({ label: `AI TAG · %${Math.round(report.confidence || 0)}`, on: true,
+                 danger: true });
+  }
+
+  chipsEl.innerHTML = chips.map(c => {
+    let color = "var(--muted)";
+    if (c.danger) { color = "var(--danger)"; }
+    else if (c.on) { color = "var(--accent)"; }
+    return `<span style="
+      padding:3px 7px;border-radius:3px;white-space:nowrap;
+      border:1px solid ${color}40;color:${color};
+      background:${color}12;opacity:${c.on ? 1 : .35}
+    ">${escapeHtml(c.label)}</span>`;
+  }).join("");
+
+  // Bulgu satırları
+  const findings = report.findings || [];
+  if (findings.length === 0) {
+    findingsEl.innerHTML = `<div style="color:var(--muted);font-size:var(--fs-sm)">
+      Raporlanacak bulgu yok.</div>`;
+    return;
+  }
+
+  findingsEl.innerHTML = findings.map(f => {
+    const color = META_SEVERITY_COLOR[f.severity] || "var(--muted)";
+    return `<div style="
+      border:1px solid ${color}35;border-left:3px solid ${color};
+      border-radius:4px;background:${color}0d;padding:7px 9px
+    ">
+      <div style="
+        display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;
+        font-family:var(--mono);font-size:var(--fs-xs)
+      ">
+        <span style="color:${color};font-weight:700">${escapeHtml(f.key || "")}</span>
+        <span style="color:var(--text)">${escapeHtml(f.value || "")}</span>
+      </div>
+      <div style="color:var(--muted);font-size:var(--fs-xs);margin-top:3px;line-height:1.45">
+        ${escapeHtml(f.note || "")}
+      </div>
+    </div>`;
+  }).join("");
+}
+
 function hideResults() {
   document.getElementById("empty-state").style.display = "flex";
   document.getElementById("results").style.display = "none";
@@ -1130,10 +2092,14 @@ function hideResults() {
 // ============================================================
 // TABS
 // ============================================================
+/**
+ * Görsel sekmesini değiştirir.
+ * Sekme kimliği butonun `data-tab` niteliğinden okunur; böylece yeni bir sekme
+ * eklendiğinde sıra bağımlılığı oluşmaz.
+ */
 function switchTab(id) {
-  document.querySelectorAll(".tab-btn").forEach((b,i) => {
-    const ids = ["annotated","heatmap","ela","original"];
-    b.classList.toggle("active", ids[i] === id);
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.tab === id);
   });
   document.querySelectorAll(".tab-content").forEach(c => {
     c.classList.toggle("active", c.id === `tab-${id}`);
@@ -1281,14 +2247,180 @@ function buildManualPage() {
         <li><b>50–75%</b> — Manipülasyon işaretleri mevcut</li>
         <li><b>75–100%</b> — Yüksek ihtimalle manipüle edilmiş</li>
       </ul>` },
-    { icon:"🤖", title:"AI Tespit Yöntemi (CNN + LSTM)", body:`
-      <p>İki bağımsız algoritma birleştirilerek kullanılmaktadır:</p>
+    { icon:"🤖", title:"AI Tespit Yöntemi — 3 Bağımsız Kanal (US-3)", body:`
+      <p>AI tespiti üç ayrı algoritmanın sonucunun birleştirilmesiyle yapılır.
+      Tümü <b>yerel</b> çalışır: internet bağlantısı veya API anahtarı gerekmez.</p>
       <ul>
-        <li><b>CNN Öznitelik Analizi (%55 ağırlık):</b> Gabor, LoG ve yönlü kenar kernelleri ile konvolüsyon uygulanır. Aktivasyon varyansı, yüksek/düşük frekans oranı ve yama entropisine bakılır.</li>
-        <li><b>LSTM Dizi Analizi (%45 ağırlık):</b> Her satır bir zaman adımı olarak işlenir. Satırlar arası delta düzlüğü, otokorelasyon periyodisitesi ve gradyan tutarlılığı ölçülür.</li>
-        <li>İki skor sigmoid ile normalize edilerek ağırlıklı birleşim hesaplanır.</li>
-        <li>Eşik: %50 üzeri → "AI üretimi" etiketi</li>
-      </ul>` },
+        <li><b>1 — CLIP Zero-Shot (ViT-B/32):</b> Görsel, "gerçek fotoğraf" ve
+            "AI üretimi görsel" anlamına gelen üç ayrı metin tanımıyla karşılaştırılır.
+            Eğitim gerektirmeyen anlamsal benzerlik ölçümüdür.</li>
+        <li><b>2 — Eğitimli derin dedektör (Swin Transformer):</b> Doğrudan
+            "AI üretimi / gerçek" ikili sınıflandırması için etiketli veriyle
+            <b>denetimli eğitilmiş</b> ayrı bir model. Model dosyaları bir kez indirilir
+            (<code>python tools/download_models.py --component ai</code>); indirilmemişse sistem
+            bu kanal olmadan çalışmaya devam eder.</li>
+        <li><b>3 — İstatistiksel analiz (5 sinyal):</b> DCT kurtosis (frekans spektrumu),
+            gürültü/detay oranı, renk kanalı korelasyonu, kenar kalitesi ve doku
+            düzenliliği. Kural tabanlıdır, her zaman aktiftir.</li>
+      </ul>
+      <p><b>Birleştirme:</b> iki derin model birden yüklüyse aralarında
+      <code>%35 CLIP + %65 eğitimli model</code>, ardından
+      <code>%82 semantik + %18 istatistiksel</code> ağırlıkla birleştirilir.
+      Eşik: %50 üzeri → "AI üretimi". Her modelin kendi skoru analiz ekranında
+      ayrı satır olarak gösterilir.</p>
+      <p><b>İçerik türü (medium) ekseni:</b> AI dedektörleri aslında
+      <i>"bu bir kamera fotoğrafı mı?"</i> sorusunu yanıtlar. Bir tablo için doğru
+      cevap "hayır"dır — ama bu "hayır" doğrudan "AI üretimi" diye okunursa
+      <b>kategori hatası</b> olur. Ölçümümüzde bu hata somutlaştı:
+      <b>Las Meninas (1656) tablosuna %65 AI skoru</b> verilmişti.
+      Bu yüzden sistem içerik türünü CLIP zero-shot ile ayrıca belirliyor
+      (fotoğraf / tablo-çizim / 3B render / ekran görüntüsü) ve sonucu
+      panelde rozet olarak gösteriyor:</p>
+      <ul>
+        <li><b>Ekran görüntüsü</b> yüksek güvenle tespit edilirse AI kararı
+            <b>verilmez</b> — arayüz grafikleri istatistiksel olarak AI görsellerine benzer.</li>
+        <li><b>Tablo / çizim / 3B render</b> için karar engellenmez, yalnızca
+            "bu bir fotoğraf değil, ayrım daha az güvenilir" uyarısı gösterilir.
+            Engelleme denendi; gerçek tabloları kurtarırken AI üretimi
+            illüstrasyonları da kaybettirdiği için tercih edilmedi.</li>
+      </ul>
+      <p>Yalnızca içerik türü için: <code>POST /api/medium</code></p>
+      <p><b>Metadata etkisi (sınırlı artış):</b> dosya yapısında kesin bir AI üretici
+      etiketi bulunursa piksel analizi skoru yükseltilir (üretici imzası/C2PA → +25 puan
+      ve en az %75; difüzyon parametreleri → +12 puan ve en az %60). Artış
+      <b>%95 ile sınırlıdır</b> çünkü metadata başka bir dosyadan kopyalanabilir.
+      Skor metadata yüzünden hiçbir zaman <i>düşürülmez</i>. Artış öncesi skor raporda
+      <code>ai_confidence_base</code> olarak saklanır.</p>
+      <p>Yüklü kanalların listesi: <code>GET /api/models</code></p>
+      <p><b>Ekran görüntüsü istisnası:</b> iki yoldan tespit edilir — istatistiksel
+      sinyaller (düz renkler, sıfır gürültü, UI elementleri) <b>veya</b> CLIP medium
+      sınıflandırması. İkisinden biri yeterlidir; bu içeriklerde AI skoru üretilmez.</p>` },
+    { icon:"👥", title:"Kişi Sayısı Tespiti (US-5)", body:`
+      <p>Görüntüdeki kişi sayısı <b>iki bağımsız dedektörün</b> sonucundan hesaplanır:</p>
+      <ul>
+        <li><b>Gövde dedektörü — Faster R-CNN (ResNet-50 FPN, COCO):</b>
+            COCO veri setindeki <code>person</code> sınıfı kutuları bulunur.
+            Güven eşiği <b>%70</b>; görüntü alanının binde 1,5'inden küçük kutular
+            gürültü sayılıp atılır.</li>
+        <li><b>Yüz dedektörü — OpenCV YuNet (ONNX, ~230 KB):</b>
+            güven eşiği <b>%60</b>. Hem gövdesi görünmeyen kişileri yakalar hem de
+            yaş tahmini (US-6) için yüz kutularını üretir.</li>
+      </ul>
+      <p><b>Sayım kuralı:</b> gövde kutuları temel alınır; <i>hiçbir gövde kutusunun
+      içine düşmeyen</i> her yüz, gövdesi görünmeyen ek bir kişi olarak sayılır
+      (yakın çekim, kadrajdan taşan veya başkasının arkasında kalan kişiler).
+      Panelde "GÖVDE", "YÜZ" ve "YALNIZ YÜZ" sayıları ayrı ayrı gösterilir, böylece
+      sayının nereden geldiği izlenebilir.</p>
+      <p><b>KİŞİLER sekmesi</b> tespit edilen kutuları görüntü üzerinde gösterir:
+      yeşil = gövde (sıra no + güven skoru), turkuaz = yüz.</p>
+      <p><b>Sınır:</b> her iki model de <b>gerçek fotoğraflarla</b> eğitilmiştir.
+      Çizim, anime ve oyun ekran görüntülerinde kişiler eksik sayılabilir —
+      arayüz kişi bulunamadığında bu uyarıyı açıkça gösterir.</p>
+      <p>Yalnızca kişi sayımı için hafif endpoint: <code>POST /api/persons</code></p>
+      <p>Model dosyaları repoda tutulmaz:
+      <code>python tools/download_models.py --component person</code></p>` },
+    { icon:"🎂", title:"Yaş Tahmini (US-6)", body:`
+      <p>Her tespit edilen yüz için <b>tek bir tam sayı yaş</b> üretilir.
+      Girdi, kişi sayımının (US-5) ürettiği yüz kutularıdır; ayrı bir yüz
+      araması yapılmaz. Çiplerdeki numara (Y1, Y2…) "KİŞİLER" sekmesindeki
+      yüz numarasıyla aynıdır.</p>
+      <p><b>Model:</b> Vision Transformer, FairFace veri setiyle eğitilmiş,
+      dokuz yaş sınıfı: 0-2, 3-9, 10-19, 20-29, 30-39, 40-49, 50-59, 60-69, 70+.</p>
+      <p><b>Neden tek sayı?</b> Model yaşı aralık olarak verir ("20-29").
+      Biz sınıf olasılıklarından <b>beklenen değeri</b> hesaplarız:</p>
+      <ul>
+        <li>Örnek: <code>20-29</code> %60 + <code>30-39</code> %40 →
+            <code>0,6 × 24,5 + 0,4 × 34,5 = 28,5</code> → <b>"29 yaş"</b></li>
+        <li>Hesaba yalnızca <b>en olası sınıf ve komşuları</b> katılır. Tüm
+            sınıflar katıldığında uzak sınıfların küçük olasılıkları tahmini
+            sürüklüyordu: bir bebeğin yüzünde en olası sınıf <code>0-2</code>
+            iken sonuç 7 yaş çıkıyordu. Komşulukla sınırlayınca aynı yüz
+            <b>3 yaş</b> veriyor.</li>
+      </ul>
+      <p><b>± değeri sabit değildir.</b> Modelin kendi olasılık dağılımının
+      standart sapmasından hesaplanır: dağılım tek sınıfta yoğunsa pay küçük,
+      iki sınıfa yayılmışsa büyük olur. Ayrıca yaşla orantılı kırpılır —
+      3 yaşındaki birine "±12" demek anlamsızdır.</p>
+      <p><b>Ölçülen doğruluk</b> (kendi test setimiz): grup fotoğrafında
+      ortalama hata <b>2,8 yıl</b> (6 yüz), tekil portrelerde <b>5,7 yıl</b>
+      (5 görsel). Portrelerdeki sapma rötuşlu stüdyo fotoğraflarından geliyor:
+      model bu yüzleri sistematik olarak <i>daha genç</i> tahmin ediyor.</p>
+      <p><b>Sınır:</b> yaş tahmini doğası gereği yaklaşıktır. Işık, poz, makyaj,
+      sakal, çözünürlük ve etnik köken sonucu belirgin biçimde kaydırabilir.
+      Çıktı <b>adli bir delil değil, bir tahmindir</b>.</p>
+      <p>Yalnızca yaş tahmini için: <code>POST /api/ages</code><br>
+      Model indirme: <code>python tools/download_models.py --component age</code></p>` },
+    { icon:"🏷️", title:"Metadata / AI Tag İncelemesi (US-4)", body:`
+      <p>Piksel analizinden <b>bağımsız</b> ikinci bir kanıt kanalı: dosyanın yapısında
+      yapay zekâ üretimine işaret eden etiketler aranır.</p>
+      <ul>
+        <li><b>EXIF</b> — Software / Make / Model / UserComment alanlarında üretici imzası</li>
+        <li><b>PNG tEXt / iTXt</b> — Stable Diffusion &amp; ComfyUI <code>parameters</code>,
+            <code>prompt</code>, <code>workflow</code> blokları (prompt, seed, sampler, steps)</li>
+        <li><b>XMP</b> — <code>xmp:CreatorTool</code> ve IPTC
+            <code>DigitalSourceType = trainedAlgorithmicMedia</code></li>
+        <li><b>C2PA / Content Credentials</b> — JUMBF manifesti ve AI beyanı
+            (kriptografik imza doğrulaması yapılmaz)</li>
+        <li><b>Kamera izi</b> — ISO, diyafram, lens, GPS, DateTimeOriginal alanları gerçek
+            çekim lehine sinyal sayılır</li>
+      </ul>
+      <p><b>Önemli:</b> Metadata silinebilir; sosyal medya yüklemeleri çoğu zaman tüm
+      blokları temizler. "AI etiketi bulunamadı" sonucu görüntünün gerçek olduğunu
+      <i>kanıtlamaz</i> — bu yüzden rapor ayrı bir panelde, kendi gerekçesiyle sunulur.</p>
+      <p>Yalnızca metadata incelemesi için hafif endpoint:
+      <code>POST /api/metadata</code></p>` },
+    { icon:"🔠", title:"Arayüz Standartları (UI/UX)", body:`
+      <p>Arayüzdeki her metin, serbest değer yerine <b>tanımlı bir ölçekten</b>
+      gelir. Böylece ekranlar arasında tutarlılık korunur ve okunabilirlik
+      garanti altına alınır.</p>
+      <p><b>İki yazı tipi, iki işi var:</b></p>
+      <ul>
+        <li><b>Syne</b> (<code>--sans</code>) — başlıklar, etiketler ve okunan her metin</li>
+        <li><b>Space Mono</b> (<code>--mono</code>) — sayılar, skorlar, teknik değerler,
+            dosya adları ve kod; hizalanması gereken her şey</li>
+      </ul>
+      <p><b>Sekiz boyut, her birinin tek kullanım yeri:</b></p>
+      <table class="effort-table">
+        <tr><th>Değişken</th><th>Boyut</th><th>Kullanım yeri</th></tr>
+        <tr><td><code>--fs-xs</code></td><td>12px</td><td>çip, rozet, dipnot, tablo etiketi</td></tr>
+        <tr><td><code>--fs-sm</code></td><td>13px</td><td>ikincil metin, açıklama satırı</td></tr>
+        <tr><td><code>--fs-body</code></td><td>15px</td><td>ana okuma metni, paragraf, liste</td></tr>
+        <tr><td><code>--fs-lg</code></td><td>17px</td><td>vurgulu metin, kart başlığı</td></tr>
+        <tr><td><code>--fs-h2</code></td><td>20px</td><td>panel / bölüm başlığı</td></tr>
+        <tr><td><code>--fs-h1</code></td><td>24px</td><td>sayfa başlığı, logo, ana karar etiketi</td></tr>
+        <tr><td><code>--fs-metric</code></td><td>32px</td><td>tek başına duran büyük sayı</td></tr>
+        <tr><td><code>--fs-display</code></td><td>40px</td><td>ana karar metni ve büyük ikonlar</td></tr>
+      </table>
+      <p><b>Kural:</b> 12px'in altına inilmez. Bir şeyin daha geri planda durması
+      gerekiyorsa boyut değil <b>renk</b> (<code>--muted</code>) veya harf aralığı
+      kullanılır. Satır yükseklikleri de üç değerden gelir:
+      <code>--lh-tight</code> (1.15), <code>--lh-normal</code> (1.45),
+      <code>--lh-relaxed</code> (1.65).</p>
+      <p><b>Boşluk da ölçekten gelir</b> — serbest piksel değeri kullanılmaz:</p>
+      <table class="effort-table">
+        <tr><th>Değişken</th><th>Boyut</th><th>Kullanım yeri</th></tr>
+        <tr><td><code>--space-1</code></td><td>6px</td><td>satır ve çip arası, en sıkı</td></tr>
+        <tr><td><code>--space-2</code></td><td>10px</td><td>başlık ile altındaki kutu arası</td></tr>
+        <tr><td><code>--space-3</code></td><td>16px</td><td>kutu içi bölümler arası, kutu dolgusu</td></tr>
+        <tr><td><code>--space-4</code></td><td>24px</td><td><b>kutular arası — her panelde aynı</b></td></tr>
+        <tr><td><code>--space-5</code></td><td>36px</td><td>sayfa bölümleri arası</td></tr>
+      </table>
+      <p>Sonuç sütunundaki paneller kendi kenar boşluğunu taşımaz; aralık tek bir
+      yerden (<code>#results { gap }</code>) gelir. Böylece yeni bir panel
+      eklendiğinde hizalama bozulmaz.</p>
+      <p><b>Önce özet, sonra detay.</b> AI karar kutusu iki kademelidir:</p>
+      <ul>
+        <li><b>Özet (her zaman açık):</b> karar etiketi, güven halkası ve sonucun
+            <i>teknik terim içermeyen</i> bir cümleyle açıklaması. Teknik bilgisi
+            olmayan bir kullanıcı yalnızca bunu okuyarak sonucu anlayabilmelidir.</li>
+        <li><b>Teknik detaylar (katlanmış):</b> içerik türü, her modelin kendi skoru,
+            istatistiksel sinyaller ve notlar. Hiçbir bilgi silinmez — yalnızca
+            istendiğinde açılır. Kapalı başlıkta içerik özeti görünür
+            ("2 model · 6 sinyal · içerik türü").</li>
+      </ul>
+      <p>Detay katmanı dört bölümden oluşur ve <b>aynı bilgi iki bölümde
+      tekrarlanmaz:</b> <b>1)</b> bağlam (içerik türü), <b>2)</b> modeller,
+      <b>3)</b> istatistiksel sinyaller, <b>4)</b> notlar.</p>` },
     { icon:"⚙️", title:"Sistem Gereksinimleri", body:`
       <ul>
         <li>Python 3.9+</li>
@@ -1299,11 +2431,19 @@ function buildManualPage() {
       </ul>` },
     { icon:"📁", title:"Proje Yapısı", body:`
       <ul>
-        <li><code>backend/app.py</code> — Flask API</li>
-        <li><code>backend/forensics_engine.py</code> — Algoritma motoru</li>
-        <li><code>frontend/index.html</code> — Tek sayfalık UI</li>
-        <li><code>docs/</code> — Kılavuz ve raporlar</li>
-        <li><code>Doxyfile</code> — Doxygen yapılandırması</li>
+        <li><code>app.py</code> — Flask API ve FSM yönetimi</li>
+        <li><code>forensics_engine.py</code> — Algoritma motoru (SIFT/SURF/AKAZE/ORB, ELA)</li>
+        <li><code>ai_detector.py</code> — AI tespiti: CLIP + eğitimli model + istatistiksel</li>
+        <li><code>deep_detector.py</code> — İkinci derin model yükleyici (US-3)</li>
+        <li><code>medium_classifier.py</code> — İçerik türü sınıflandırma (fotoğraf/tablo/3B/ekran)</li>
+        <li><code>metadata_inspector.py</code> — Metadata / AI tag incelemesi (US-4)</li>
+        <li><code>main.html</code> — Tek sayfalık arayüz</li>
+        <li><code>person_detector.py</code> — Kişi sayımı: gövde + yüz tespiti (US-5)</li>
+        <li><code>age_estimator.py</code> — Yüzlerden yaş tahmini (US-6)</li>
+        <li><code>tools/download_models.py</code> — Model indirme script'i</li>
+        <li><code>tests/</code> — Test fixture üretimi ve white box testler</li>
+        <li><code>clip_processor/</code>, <code>models/</code> — Model dosyaları (repoda tutulmaz)</li>
+        <li><code>docs/</code> — Kılavuz ve raporlar · <code>Doxyfile</code> — Doxygen yapılandırması</li>
       </ul>` },
   ];
   document.getElementById("manual-content").innerHTML =

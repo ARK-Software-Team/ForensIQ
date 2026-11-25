@@ -1,25 +1,32 @@
 """
 @file ai_detector.py
-@brief AI-Generated Image Detector — Three-Layer Hybrid System
+@brief AI-Generated Image Detector — Tamamen çevrimdışı, çok algoritmalı sistem
 @details
-  Layer 1: CLIP Local Model (clip_weights.pth) — 85-90% accuracy
-  Layer 2: Anthropic Vision API (ANTHROPIC_API_KEY) — 90%+ accuracy
-  Layer 3: Statistical Analysis (always active) — fallback
+  Algoritma 1: CLIP zero-shot (ViT-B/32) — anlamsal, eğitim gerektirmez
+  Algoritma 2: DeepAIDetector (Swin/ViT, denetimli eğitilmiş) — bkz. deep_detector.py
+  Algoritma 3: İstatistiksel analiz (5 sinyal) — her zaman aktif
 
-  Priority: CLIP > Anthropic API > Statistical
+  Üç kanal birbirinden bağımsız çalışır; sonuçlar ağırlıklı olarak birleştirilir.
+  Hiçbiri internet veya API anahtarı gerektirmez (User Story-3).
+
+@note v4.0.0 ile Anthropic Vision API katmanı **kaldırıldı**: proje tamamen
+      ücretsiz ve çevrimdışı çalışmalı, harici ücretli servise bağımlı olmamalı.
 @author ImageForensics Team
-@version 3.1.0
+@version 4.0.0
 """
 
-import os
 import cv2
-import base64
 import logging
 import numpy as np
-import requests
-from io import BytesIO
 from pathlib import Path
 from PIL import Image
+
+# İkinci derin model (denetimli eğitilmiş AI dedektörü) — opsiyonel
+try:
+    from deep_detector import DeepAIDetector
+    _DEEP_DETECTOR_AVAILABLE = True
+except ImportError:
+    _DEEP_DETECTOR_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +34,26 @@ _BASE_DIR      = Path(__file__).parent
 CLIP_WEIGHTS   = _BASE_DIR / "clip_weights.pth"
 CLIP_PROCESSOR = _BASE_DIR / "clip_processor"
 
-ANTHROPIC_API   = "https://api.anthropic.com/v1/messages"
-ANTHROPIC_MODEL = "claude-opus-4-5"
+# Semantik kanalların kendi içindeki ağırlığı (ikisi birden yüklüyse).
+#
+# Derin model daha ağır basar (%35 CLIP / %65 SwinV2). Gerekçe
+# (ölçüm: images/testing, 14 görsel — ekran görüntüleri hariç, 23.11.2026):
+#   - CLIP tek başına            :  9/14
+#   - SwinV2 tek başına          : 11/14
+#   - CLIP %50 + SwinV2 %50      : 11/14 (grup selfie'si %49,6 ile sınırda)
+#   - CLIP %35 + SwinV2 %65      : 11/14 (aynı doğruluk, daha geniş pay)
+#   + medium aşaması (ekran kapısı) ile → **12/14**
+#
+# Not: Önceki ikinci model (Organika/sdxl-detector, Swin v1) tek başına 8/14
+# veriyordu ve tablolara %99,9 AI diyordu; 23.11.2026'da SwinV2 ile değiştirildi.
+#
+# @warning 14 görsellük bir set doğrulanmış doğruluk oranı değildir; ağırlık
+#          daha geniş bir test setiyle yeniden ölçülmelidir.
+W_DEEP_VS_CLIP = 0.65
+
+# Semantik kanal ↔ istatistiksel kanal ağırlığı
+W_SEMANTIC = 0.82
+W_STAT     = 0.18
 
 _clip_model     = None
 _clip_processor = None
@@ -108,10 +133,15 @@ def _load_clip():
         return False
 
     try:
+        # Bu import zinciri (torch -> torch._dynamo -> sympy -> transformers)
+        # tek başına 15 saniyeyi bulabiliyor ve bu sürede hiçbir çıktı olmuyor.
+        # Kullanıcı donma sanmasın diye başlamadan önce duyuruyoruz.
+        logger.info("[1/4] PyTorch ve transformers yükleniyor "
+                    "(en uzun adım, ~15 sn)...")
         import torch
         from transformers import CLIPModel, CLIPProcessor as CP
 
-        logger.info("Loading CLIP processor: %s", CLIP_PROCESSOR)
+        logger.info("[2/4] CLIP yükleniyor: %s", CLIP_PROCESSOR)
         proc = CP.from_pretrained(str(CLIP_PROCESSOR))
 
         if has_full_model:
@@ -143,53 +173,68 @@ def _load_clip():
 class AIDetector:
     """
     @class AIDetector
-    @brief Three-layer hybrid AI image detector.
+    @brief Çok algoritmalı, tamamen çevrimdışı AI görsel dedektörü (User Story-3).
 
     @details
-    Priority order:
-      1. CLIP local model — no internet needed
-      2. Anthropic Vision API — requires ANTHROPIC_API_KEY env var
-      3. Statistical analysis — always active (fallback)
+    Üç bağımsız kanal:
+      1. **CLIP zero-shot** (ViT-B/32) — metin-görsel benzerliği, eğitim yok
+      2. **DeepAIDetector** — bu göreve özel denetimli eğitilmiş sınıflandırıcı
+      3. **İstatistiksel analiz** (5 sinyal) — her zaman aktif
 
-    When semantic source available: 82% semantic + 18% statistical
+    Birleştirme: iki semantik model varsa aralarında
+    `%65 CLIP + %35 derin model`, sonra `%82 semantik + %18 istatistiksel`.
+    Tek semantik model varsa doğrudan o kullanılır; hiçbiri yoksa yalnız
+    istatistiksel skor döner (model dosyaları eksikse sistem çökmez).
+
+    @note Harici API / internet bağımlılığı yoktur.
     """
 
     def __init__(self):
-        self._api_key       = os.environ.get("ANTHROPIC_API_KEY", "")
-        self._api_available = bool(self._api_key)
-        self._clip_ready    = _load_clip()
+        """@brief CLIP ve derin modeli yükle; ikisi de opsiyoneldir."""
+        self._clip_ready = _load_clip()
 
-        if self._clip_ready:
-            logger.info("AIDetector v3.1: CLIP local model active")
-        elif self._api_available:
-            logger.info("AIDetector v3.1: Anthropic API active")
+        if _DEEP_DETECTOR_AVAILABLE:
+            self._deep = DeepAIDetector()
         else:
-            logger.info("AIDetector v3.1: Statistical mode only")
+            self._deep = None
+            logger.info("deep_detector.py yok — ikinci derin model devre dışı")
 
-    def detect(self, img_np: np.ndarray, img_bytes: bytes) -> dict:
+        active = []
+        if self._clip_ready:
+            active.append("CLIP")
+        if self._deep is not None and self._deep.available:
+            active.append(self._deep.display_name)
+        active.append("İstatistiksel")
+        logger.info("AIDetector v4.0 aktif kanallar: %s", " + ".join(active))
+
+    @property
+    def model_count(self) -> int:
+        """@brief Yüklü öğrenen (eğitimli) model sayısı — US-3 kanıtı."""
+        n = 1 if self._clip_ready else 0
+        if self._deep is not None and self._deep.available:
+            n += 1
+        return n
+
+    def detect(self, img_np: np.ndarray, img_bytes: bytes = b"") -> dict:
         """
-        @brief Detect whether image is AI-generated.
-        @param img_np    RGB uint8 numpy array.
-        @param img_bytes Raw image bytes.
-        @return          Dict with generated, confidence, method, signals.
+        @brief Görselin AI üretimi olup olmadığını tespit eder.
+        @param img_np    RGB uint8 numpy dizisi.
+        @param img_bytes Ham dosya baytları (geriye dönük uyumluluk; kullanılmıyor).
+        @return          generated, confidence, method, model_scores, signals içeren dict.
         """
         gray     = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
         stat_res = self._statistical_analysis(img_np, gray)
 
-        if self._clip_ready:
-            clip_res = self._clip_inference(img_np)
-            if clip_res is not None:
-                return self._combine(stat_res, clip_res, source="CLIP Local Model")
+        clip_res = self._clip_inference(img_np) if self._clip_ready else None
 
-        if self._api_available:
-            api_res = self._anthropic_vision(img_bytes)
-            if api_res is not None:
-                return self._combine(stat_res, api_res, source="Anthropic Vision API")
+        deep_res = None
+        if self._deep is not None and self._deep.available:
+            deep_res = self._deep.predict(img_np)
 
-        return self._combine(stat_res, None, source="Statistical Analysis")
+        return self._combine(stat_res, clip_res, deep_res)
 
     # ------------------------------------------------------------------
-    # Layer 1: CLIP Zero-Shot
+    # Algoritma 1: CLIP Zero-Shot
     # ------------------------------------------------------------------
 
     def _clip_inference(self, img_np: np.ndarray):
@@ -238,74 +283,7 @@ class AIDetector:
             return None
 
     # ------------------------------------------------------------------
-    # Layer 2: Anthropic Vision API
-    # ------------------------------------------------------------------
-
-    def _anthropic_vision(self, img_bytes: bytes):
-        """
-        @brief Anthropic Claude Vision AI detection.
-        @param img_bytes Raw image bytes.
-        @return          Result dict or None.
-        """
-        try:
-            pil   = Image.open(BytesIO(img_bytes)).convert("RGB")
-            ratio = min(768 / pil.width, 768 / pil.height, 1.0)
-            if ratio < 1.0:
-                new_w = int(pil.width * ratio)
-                new_h = int(pil.height * ratio)
-                pil   = pil.resize((new_w, new_h), Image.LANCZOS)
-            buf = BytesIO()
-            pil.save(buf, "JPEG", quality=85)
-            img_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-
-            prompt = (
-                "Inspect this image. Return ONLY JSON:\n"
-                '{"ai_generated": true/false, "confidence": 0-100, '
-                '"reason": "max 80 chars"}\n'
-                "AI signs: perfect smooth skin, weird hands, physics errors, "
-                "fantasy scene. Only JSON."
-            )
-            resp = requests.post(
-                ANTHROPIC_API,
-                headers={
-                    "x-api-key":          self._api_key,
-                    "anthropic-version":  "2023-06-01",
-                    "content-type":       "application/json",
-                },
-                json={
-                    "model":      ANTHROPIC_MODEL,
-                    "max_tokens": 120,
-                    "messages": [{
-                        "role": "user",
-                        "content": [
-                            {"type": "image",
-                             "source": {"type":       "base64",
-                                        "media_type": "image/jpeg",
-                                        "data":       img_b64}},
-                            {"type": "text", "text": prompt},
-                        ],
-                    }],
-                },
-                timeout=20,
-            )
-            if resp.status_code != 200:
-                return None
-            import json
-            raw = resp.json()["content"][0]["text"].strip()
-            if "```" in raw:
-                raw = raw.split("```")[1].lstrip("json").strip()
-            parsed = json.loads(raw)
-            return {
-                "ai_generated": bool(parsed.get("ai_generated", False)),
-                "confidence":   float(parsed.get("confidence", 50)),
-                "reason":       str(parsed.get("reason", "")),
-            }
-        except Exception as e:
-            logger.warning("Anthropic API error: %s", e)
-            return None
-
-    # ------------------------------------------------------------------
-    # Layer 3: Statistical Analysis
+    # Algoritma 3: İstatistiksel analiz
     # ------------------------------------------------------------------
 
     def _statistical_analysis(self, img_np: np.ndarray,
@@ -529,32 +507,89 @@ class AIDetector:
     # Combine & Helpers
     # ------------------------------------------------------------------
 
-    def _combine(self, stat: dict, semantic, source: str) -> dict:
+    def _combine(self, stat: dict, clip_res, deep_res) -> dict:
         """
-        @brief Combine semantic (CLIP/API) and statistical results (82/18).
-        @param stat      Statistical analysis result dict.
-        @param semantic  Semantic result dict or None.
-        @param source    Source label string.
-        @return          Final combined result dict.
+        @brief İki semantik modeli ve istatistiksel kanalı birleştirir.
+
+        @param stat      İstatistiksel analiz sonucu (zorunlu).
+        @param clip_res  CLIP zero-shot sonucu veya None.
+        @param deep_res  DeepAIDetector sonucu veya None.
+        @return          Birleşik sonuç dict'i (model_scores dâhil).
+
+        @details Ağırlıklar: iki model varsa `%65 CLIP + %35 derin model`,
+                 ardından `%82 semantik + %18 istatistiksel`. Tek model varsa
+                 o modelin skoru semantik skordur. Hiç model yoksa yalnızca
+                 istatistiksel skor döner.
         """
-        if semantic is not None:
-            combined  = semantic["confidence"] * 0.82 + stat["confidence"] * 0.18
-            generated = combined > 50.0
-            reason    = semantic.get("reason", "")
+        model_scores = []
+
+        if clip_res is not None:
+            model_scores.append({
+                "key":          "clip",
+                "name":         "CLIP Zero-Shot",
+                "architecture": "ViT-B/32 (zero-shot)",
+                "score":        round(float(clip_res["confidence"]), 2),
+                "note":         clip_res.get("reason", ""),
+            })
+
+        if deep_res is not None:
+            model_scores.append({
+                "key":          "deep",
+                "name":         deep_res.get("name", "Derin Model"),
+                "architecture": deep_res.get("architecture", ""),
+                "score":        round(float(deep_res["confidence"]), 2),
+                "note":         deep_res.get("reason", ""),
+            })
+
+        # --- Semantik skor ---
+        if clip_res is not None and deep_res is not None:
+            semantic_conf = (
+                clip_res["confidence"] * (1.0 - W_DEEP_VS_CLIP)
+                + deep_res["confidence"] * W_DEEP_VS_CLIP
+            )
+            source = f"CLIP + {deep_res.get('name', 'Derin Model')}"
+            reason = (
+                f"CLIP %{clip_res['confidence']:.1f} · "
+                f"{deep_res.get('name', 'Derin model')} %{deep_res['confidence']:.1f}"
+            )
+        elif clip_res is not None:
+            semantic_conf = float(clip_res["confidence"])
+            source        = "CLIP Zero-Shot"
+            reason        = clip_res.get("reason", "")
+        elif deep_res is not None:
+            semantic_conf = float(deep_res["confidence"])
+            source        = deep_res.get("name", "Derin Model")
+            reason        = deep_res.get("reason", "")
         else:
-            combined  = stat["confidence"]
-            generated = combined > 50.0
-            reason    = self._build_reason(stat)
+            semantic_conf = None
+            source        = "İstatistiksel Analiz"
+            reason        = self._build_reason(stat)
+
+        # --- İstatistiksel kanalla birleştir ---
+        if semantic_conf is not None:
+            combined = semantic_conf * W_SEMANTIC + stat["confidence"] * W_STAT
+        else:
+            combined = stat["confidence"]
+
+        model_scores.append({
+            "key":          "statistical",
+            "name":         "İstatistiksel Analiz",
+            "architecture": "5 sinyal (DCT / gürültü / renk / kenar / doku)",
+            "score":        round(float(stat["confidence"]), 2),
+            "note":         self._build_reason(stat),
+        })
 
         return {
-            "generated":    generated,
-            "confidence":   round(combined, 2),
-            "method":       source,
-            "reason":       reason,
-            "stat_conf":    stat["confidence"],
-            "api_conf":     semantic["confidence"] if semantic is not None else None,
-            "signals":      stat.get("signals", {}),
-            "signal_notes": stat.get("notes", {}),
+            "generated":     combined > 50.0,
+            "confidence":    round(combined, 2),
+            "method":        source,
+            "reason":        reason,
+            "stat_conf":     stat["confidence"],
+            "semantic_conf": round(semantic_conf, 2) if semantic_conf is not None else None,
+            "model_scores":  model_scores,
+            "model_count":   len(model_scores) - 1,  # istatistiksel kanal hariç
+            "signals":       stat.get("signals", {}),
+            "signal_notes":  stat.get("notes", {}),
         }
 
     def _build_reason(self, stat: dict) -> str:
